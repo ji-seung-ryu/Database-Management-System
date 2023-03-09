@@ -11,20 +11,29 @@ insert, find, delete를 통해 정렬된 데이터를 표현하기 위한 트리
 가장 초기의 B+tree는 크게 두 개의 layer로 구성되어있다. Bpt manager와 File manager이
 다. Bpt manager는 B+ Tree operation 에 해당하는 insert, delete, find 작업을 수행한다. File manager 는 File open, write, read 와 같은 file 관련 작업을 수행한다. 즉, Data file
 에 대한 접근은 File manager를 통해서만 가능한 것이다. 아래에서는 데이터 파일의 구성
-요소, Bpt manager와 File manager의 동작 방식을 보다 세부적으로 다룰 것이다. What's inside the data file?
+요소, Bpt manager와 File manager의 동작 방식을 보다 세부적으로 다룰 것이다. 
+
+## What's inside the data file?
+
 데이터 파일은 4096 byte의 페이지들로 구성되어있다. 페이지는 header page, internal 
 page, leaf page, free page 총 4개의 종류이다. 
-header page : 데이터 파일에 가장 앞에 존재하며 metadata를 가지고 있다. metadata는 
+
+### header page : 
+데이터 파일에 가장 앞에 존재하며 metadata를 가지고 있다. metadata는 
 Free page number, Root page number, Number of pages로 이루어져있다.
-internal page: internal record를 저장하는 페이지이다. internal record는 leaf record의 위
+
+### internal page: 
+internal record를 저장하는 페이지이다. internal record는 leaf record의 위
 치를 알려주는 역할을 한다. 
-leaf page: 실질적으로 leaf record를 가지고 있는 페이지이다. free page: leaf page, internal page가 될 수 있는 공백의 페이지이다.
+
+### leaf page: 
+실질적으로 leaf record를 가지고 있는 페이지이다. free page: leaf page, internal page가 될 수 있는 공백의 페이지이다.
 
 ![image](image/image2.png)
 
 ## HOW Bpt manager WORKS
 
-● insert
+### ● insert
 
 find함수를 통해 해당 key를 가진 record가 존재하는지 판단한다. record가 존재할 경우, value만 업데이트 한다. 그렇지 않을 경우, 새로운 record를 insert 해야 하는데 아래의 3가
 지 상황에 알맞게 동작해야한다.
@@ -35,7 +44,7 @@ find함수를 통해 해당 key를 가진 record가 존재하는지 판단한다
 record를 insert해주고 마찬가지로 노드가 가득 찼을 경우, split 해준다. 이 과정은 root 노
 드까지 일어난다. 
 
-● delete
+### ● delete
 
 root에서 시작하여 key가 속한 leaf page를 찾는다. leaf page에서 key를 제거한다. leaf 
 page의 key가 하나도 남지 않는 경우만 neighbor page와 merge가 일어난다. 다만 
@@ -70,16 +79,16 @@ buffer manage은 file I/o를 최소화하기 위해 등장하였다. bpt manager
 체이며 file I/o 보다 빠른 접근이 가능하다. 아래의 이점은 buffer manager가 DBMS에 가
 져오는 이점들이다.
 
-● write buffering -> file write를 직접적으로 하지 않고 buffer write한다. write가 빨리 이
+### ● write buffering -> 
+file write를 직접적으로 하지 않고 buffer write한다. write가 빨리 이
 루어지는 것 같은 효과를 준다. 
 
-● caching read -> 해당 페이지에 대한 내용이 buffer에 있을 경우, file read가 일어나지 
-않는다. read가 빨리 이루어지는 것 같은 효과를 준다.
+### ● caching read -> 
+해당 페이지에 대한 내용이 buffer에 있을 경우, file read가 일어나지 않는다. read가 빨리 이루어지는 것 같은 효과를 준다.
 
 ![image](image/image4.png)
 
-init db, buffer read/write 등의 api를 제공하며 아래에서는 각 api의 동작원리에 대해 세부
-적으로 다룰 것이다. 
+init db, buffer read/write 등의 api를 제공하며 아래에서는 각 api의 동작원리에 대해 세부적으로 다룰 것이다. 
 
 ## init db 
 buffer를 초기화하는 작업이다. 이 과정에서 버퍼의 개수를 지정할 수 있다. 
@@ -103,20 +112,24 @@ pinned되어 있다면 그 다음 버퍼를 제공해야 한다.
 concurrency control 이루어지지 않는 DBMS에서는 사용자에게 이상한 결과가 발생할 수 
 있다. 
 
-Lost Update: 두 번째 트랜잭션이 첫 번째 트랜잭션이 변경한 record값을 곧바로 변경하면 
-첫 번째 트랜잭션의 update가 사라진다. 
+### Lost Update: 
+두 번째 트랜잭션이 첫 번째 트랜잭션이 변경한 record값을 곧바로 변경하면 첫 번째 트랜잭션의 update가 사라진다. 
 
-Inconsistent Reads: 하나의 트랜잭션이 동일한 record에 대해 두 번 read를 하였을 때, read된 record의 값이 다른 것을 의미한다. 
+### Inconsistent Reads: 
+하나의 트랜잭션이 동일한 record에 대해 두 번 read를 하였을 때, read된 record의 값이 다른 것을 의미한다. 
 
-Dirty Reads: 트랜잭션이 나중에 abort된 트랜잭션에 의해 쓰인 값을 읽는다. 
+### Dirty Reads: 
+트랜잭션이 나중에 abort된 트랜잭션에 의해 쓰인 값을 읽는다. 
 
 DBMS 트랜잭션들이 안정적으로 수행된다는 것을 보장하기 위한 성질 ACID 중 CI 에 해당
 하는 내용이다.
 
-C: 트랜잭션이 실행을 성공적으로 완료하면 언제나 일관성 있는 데이터베이스 상태로 유지
+### C: 
+트랜잭션이 실행을 성공적으로 완료하면 언제나 일관성 있는 데이터베이스 상태로 유지
 하는 것을 의미한다.
 
-I: 트랜잭션을 수행 시 다른 트랜잭션의 연산 작업이 끼어들지 못하도록 보장하는 것. 즉, 트랜잭션 밖에 있는 어떤 연산도 중간 단계의 데이터를 볼 수 없음을 의미한다.
+### I: 
+트랜잭션을 수행 시 다른 트랜잭션의 연산 작업이 끼어들지 못하도록 보장하는 것. 즉, 트랜잭션 밖에 있는 어떤 연산도 중간 단계의 데이터를 볼 수 없음을 의미한다.
 
 ## how transaction manager works 
 record에 대한 lock은 lock table을 통해 이루어진다. lock table은 여러 thread의 lock 
