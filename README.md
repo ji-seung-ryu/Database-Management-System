@@ -5,7 +5,7 @@ Overall Layered Architecture
 개요 
 disk based B+ TREE는 disk 상에서 동작하는 b+ tree이다. b+ tree는 record의 효율적인 
 insert, find, delete를 통해 정렬된 데이터를 표현하기 위한 트리자료구조의 일종이다.
-<img src="/image/image1.png" width="700" height="370">
+<img src="/image/image1.png" width="370" height="370">
 가장 초기의 B+tree는 크게 두 개의 layer로 구성되어있다. Bpt manager와 File manager이
 다. Bpt manager는 B+ Tree operation 에 해당하는 insert, delete, find 작업을 수행한다. File manager 는 File open, write, read 와 같은 file 관련 작업을 수행한다. 즉, Data file
 에 대한 접근은 File manager를 통해서만 가능한 것이다. 아래에서는 데이터 파일의 구성
