@@ -7,7 +7,7 @@ disk based B+ TREE는 disk 상에서 동작하는 b+ tree이다. b+ tree는 reco
 insert, find, delete를 통해 정렬된 데이터를 표현하기 위한 트리자료구조의 일종이다.
 <img src="/image/image1.png" width="700" height="370">
 
-![image]("/image/image1.png")
+![image](image/image1.png)
 
 
 가장 초기의 B+tree는 크게 두 개의 layer로 구성되어있다. Bpt manager와 File manager이
