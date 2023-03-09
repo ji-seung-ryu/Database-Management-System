@@ -1,0 +1,19 @@
+SELECT name
+FROM Pokemon
+WHERE type IN (
+SELECT type
+FROM Pokemon
+GROUP BY type
+HAVING COUNT(*)>=(
+SELECT MAX(CNT2)
+FROM(
+SELECT *,COUNT(*) AS CNT2
+FROM Pokemon
+GROUP BY type
+HAVING COUNT(*)<(
+SELECT MAX(CNT1)
+FROM(
+SELECT *, COUNT(*) AS CNT1
+FROM Pokemon
+GROUP BY type) A) )A) )
+ORDER BY name

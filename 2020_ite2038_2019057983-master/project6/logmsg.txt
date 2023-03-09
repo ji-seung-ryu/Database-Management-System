@@ -1,0 +1,4512 @@
+[ANALYSIS] Analysis pass start
+[ANALYSIS] Analysis success. Winner:, Loser:
+[REDO] Redo pass start
+[REDO] Redo pass end
+[UNDO] Undo pass start
+[UNDO] Undo pass end
+[ANALYSIS] Analysis pass start
+[ANALYSIS] Analysis success. Winner: 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74 75 76 77 78 79 80 81 82 83 84 85 86 87 88 89 90 91 92 93 94 95 96 97 98 99 100 101 102 103 104 105 106 107 108 109 110 111 112 113 114 115 116 117 118 119 120 121 122 123 124 125 126 127 128 129 130 131 132 133 134 135 136 137 138 139 140 141 142 143 144 145 146 147 148 149 150 151 152 153 154 155 156 157 158 159 160 161 162 163 164 165 166 167 168 169 170 171 172 173 174 175 176 177 178 179 180 181 182 183 184 185 186 187 188 189 190 191 192 193 194 195 196 197 198 199 200 201 202 203 204 205 206 207 208 209 210 211 212 213 214 215 216 217 218 219 220 221 222 223 224 225 226 227 228 229 230 231 232 233 234 235 236 237 238 239 240 241 242 243 244 245 246 247 248 249 250 251 252 253 254 255 256 257 258 259 260 261 262 263 264 265 266 267 268 269 270 271 272 273 274 275 276 277 278 279 280 281 282 283 284 285 286 287 288 289 290 291 292 293 294 295 296 297 298 299 300 301 302 303 304 305 306 307 308 309 310 311 312 313 314 315 316 317 318 319 320 321 322 323 324 325 326 327 328 329 330 331 332 333 334 335 336 337 338 339 340 341 342 343 344 345 346 347 348 349 350 351 352 353 354 355 356 357 358 359 360 361 362 363 364 365 366 367 368 369 370 371 372 373 374 375 376 377 378 379 380 381 382 383 384 385 386 387 388 389 390 391 392 393 394 395 396 397 398 399 400 401 402 403 404 405 406 407 408 409 410 411 412 413 414 415 416 417 418 419 420 421 422 423 424 425 426 427 428 429 430 431 432 433 434 435 436 437 438 439 440 441 442 443 444 445 446 447 448 449 450 451 452 453 454 455 456 457 458 459 460 461 462 463 464 465 466 467 468 469 470 471 472 473 474 475 476 477 478 479 480 481 482 483 484 485 486 487 488 489 490 491 492 493 494 495 496 497 498 499 500 501 502 503 504 505 506 507 508 509 510 511 512 513 514 515 516 517 518 519 520 521 522 523 524 525 526 527 528 529 530 531 532 533 534 535 536 537 538 539 540 541 542 543 544 545 546 547 548 549 550 551 552 553 554 555 556 557 558 559 560 561 562 563 564 565 566 567 568 569 570 571 572 573 574 575 576 577 578 579 580 581 582 583 584 585 586 587 588 589 590 591 592 593 594 595 596 597 598 599 600 601 602 603 604 605 606 607 608 609 610 611 612 613 614 615 616 617 618 619 620 621 622 623 624 625 626 627 628 629 630 631 632 633 634 635 636 637 638 639 640 641 642 643 644 645 646 647 648 649 650 651 652 653 654 655 656 657 658 659 660 661 662 663 664 665 666 667 668 669 670 671 672 673 674 675 676 677 678 679 680 681 682 683 684 685 686 687 688 689 690 691 692 693 694 695 696 697 698 699 700 701 702 703 704 705 706 707 708 709 710 711 712 713 714 715 716 717 718 719 720 721 722 723 724 725 727 728 729 726 730 731 732 733 734 735 736 737 738 739 740 741 742 743 744 745 746 747 748 749 750 751 752 753 754 755 756 757 758 759 760 761 762 763 764 765 766 767 768 769 770 771 772 773 774 775 776 777 778 779 780 781 782 783 784 785 786 787 788 789 790 791 792 793 794 795 796 797 798 799 800 801 802 803 804 805 806 807 808 809 810 811 812 813 814 815 816 817 818 819 820 821 822 823 824 825 826 827 828 829 830 831 832 833 834 835 836 837 838 839 840 841 842 843 844 845 846 847 848 849 850 851 852 853 854 855 856 857 858 859 860 861 862 863 864 865 866 867 868 869 870 871 872 873 874 875 876 877 878 879 880 881 882 883 884 885 886 887 888 889 890 891 892 893 894 895 896 897 898 899 900 901 902 903 904 905 906 907 908 909 910 911 912 913 914 915 916 917 918 919 920 921 922 923 924 925 926 927 928 929 930 931 932 933 934 935 936 937 938 939 940 941 942 943 944 945 946 947 948 949 950 951 952 953 954 955 956 957 958 959 960 961 962 963 964 965 966 967 968 969 970 971 972 973 974 975 976 977 978 979 980 981 982 983 984 985 986 987 988 989 990 991 992 993 994 995 996 997 998 999 1000, Loser:
+[REDO] Redo pass start
+LSN 28 [BEGIN] Transaction id 1
+LSN 56 [BEGIN] Transaction id 2
+LSN 84 [BEGIN] Transaction id 3
+LSN 112 [BEGIN] Transaction id 4
+LSN 140 [BEGIN] Transaction id 5
+LSN 168 [COMMIT] Transaction id 1
+LSN 196 [BEGIN] Transaction id 6
+LSN 224 [BEGIN] Transaction id 7
+LSN 252 [COMMIT] Transaction id 3
+LSN 280 [COMMIT] Transaction id 5
+LSN 568 [CONSIDER_REDO] Transaction id 4 redo 
+LSN 596 [BEGIN] Transaction id 8
+LSN 884 [CONSIDER_REDO] Transaction id 2 redo 
+LSN 912 [BEGIN] Transaction id 9
+LSN 1200 [CONSIDER_REDO] Transaction id 6 redo 
+LSN 1228 [BEGIN] Transaction id 10
+LSN 1516 [CONSIDER_REDO] Transaction id 7 redo 
+LSN 1544 [BEGIN] Transaction id 11
+LSN 1572 [BEGIN] Transaction id 12
+LSN 1600 [BEGIN] Transaction id 13
+LSN 1628 [BEGIN] Transaction id 14
+LSN 1656 [BEGIN] Transaction id 15
+LSN 1684 [BEGIN] Transaction id 16
+LSN 1712 [BEGIN] Transaction id 17
+LSN 1740 [BEGIN] Transaction id 18
+LSN 1768 [BEGIN] Transaction id 19
+LSN 1796 [BEGIN] Transaction id 20
+LSN 1824 [BEGIN] Transaction id 21
+LSN 1852 [BEGIN] Transaction id 22
+LSN 1880 [BEGIN] Transaction id 23
+LSN 1908 [BEGIN] Transaction id 24
+LSN 1936 [BEGIN] Transaction id 25
+LSN 1964 [BEGIN] Transaction id 26
+LSN 1992 [BEGIN] Transaction id 27
+LSN 2020 [BEGIN] Transaction id 28
+LSN 2048 [BEGIN] Transaction id 29
+LSN 2076 [BEGIN] Transaction id 30
+LSN 2104 [BEGIN] Transaction id 31
+LSN 2132 [BEGIN] Transaction id 32
+LSN 2160 [BEGIN] Transaction id 33
+LSN 2188 [BEGIN] Transaction id 34
+LSN 2216 [BEGIN] Transaction id 35
+LSN 2244 [BEGIN] Transaction id 36
+LSN 2272 [BEGIN] Transaction id 37
+LSN 2300 [BEGIN] Transaction id 38
+LSN 2328 [BEGIN] Transaction id 39
+LSN 2356 [BEGIN] Transaction id 40
+LSN 2384 [BEGIN] Transaction id 41
+LSN 2412 [BEGIN] Transaction id 42
+LSN 2440 [BEGIN] Transaction id 43
+LSN 2468 [BEGIN] Transaction id 44
+LSN 2496 [BEGIN] Transaction id 45
+LSN 2524 [BEGIN] Transaction id 46
+LSN 2552 [BEGIN] Transaction id 47
+LSN 2580 [BEGIN] Transaction id 48
+LSN 2608 [BEGIN] Transaction id 49
+LSN 2636 [BEGIN] Transaction id 50
+LSN 2664 [BEGIN] Transaction id 51
+LSN 2692 [BEGIN] Transaction id 52
+LSN 2720 [BEGIN] Transaction id 53
+LSN 2748 [BEGIN] Transaction id 54
+LSN 2776 [BEGIN] Transaction id 55
+LSN 2804 [BEGIN] Transaction id 56
+LSN 2832 [BEGIN] Transaction id 57
+LSN 2860 [BEGIN] Transaction id 58
+LSN 2888 [BEGIN] Transaction id 59
+LSN 2916 [BEGIN] Transaction id 60
+LSN 2944 [BEGIN] Transaction id 61
+LSN 2972 [BEGIN] Transaction id 62
+LSN 3000 [BEGIN] Transaction id 63
+LSN 3028 [BEGIN] Transaction id 64
+LSN 3056 [BEGIN] Transaction id 65
+LSN 3084 [BEGIN] Transaction id 66
+LSN 3112 [BEGIN] Transaction id 67
+LSN 3140 [BEGIN] Transaction id 68
+LSN 3168 [BEGIN] Transaction id 69
+LSN 3196 [BEGIN] Transaction id 70
+LSN 3224 [BEGIN] Transaction id 71
+LSN 3252 [BEGIN] Transaction id 72
+LSN 3280 [BEGIN] Transaction id 73
+LSN 3308 [BEGIN] Transaction id 74
+LSN 3336 [BEGIN] Transaction id 75
+LSN 3364 [BEGIN] Transaction id 76
+LSN 3392 [BEGIN] Transaction id 77
+LSN 3420 [BEGIN] Transaction id 78
+LSN 3448 [BEGIN] Transaction id 79
+LSN 3476 [BEGIN] Transaction id 80
+LSN 3504 [BEGIN] Transaction id 81
+LSN 3532 [BEGIN] Transaction id 82
+LSN 3560 [BEGIN] Transaction id 83
+LSN 3588 [BEGIN] Transaction id 84
+LSN 3616 [BEGIN] Transaction id 85
+LSN 3644 [BEGIN] Transaction id 86
+LSN 3672 [BEGIN] Transaction id 87
+LSN 3700 [BEGIN] Transaction id 88
+LSN 3728 [BEGIN] Transaction id 89
+LSN 3756 [BEGIN] Transaction id 90
+LSN 3784 [BEGIN] Transaction id 91
+LSN 3812 [BEGIN] Transaction id 92
+LSN 3840 [BEGIN] Transaction id 93
+LSN 3868 [BEGIN] Transaction id 94
+LSN 3896 [BEGIN] Transaction id 95
+LSN 3924 [BEGIN] Transaction id 96
+LSN 3952 [BEGIN] Transaction id 97
+LSN 3980 [BEGIN] Transaction id 98
+LSN 4008 [BEGIN] Transaction id 99
+LSN 4036 [BEGIN] Transaction id 100
+LSN 4064 [BEGIN] Transaction id 101
+LSN 4092 [BEGIN] Transaction id 102
+LSN 4120 [BEGIN] Transaction id 103
+LSN 4148 [BEGIN] Transaction id 104
+LSN 4176 [BEGIN] Transaction id 105
+LSN 4204 [BEGIN] Transaction id 106
+LSN 4232 [BEGIN] Transaction id 107
+LSN 4260 [BEGIN] Transaction id 108
+LSN 4288 [BEGIN] Transaction id 109
+LSN 4316 [BEGIN] Transaction id 110
+LSN 4344 [BEGIN] Transaction id 111
+LSN 4372 [BEGIN] Transaction id 112
+LSN 4400 [BEGIN] Transaction id 113
+LSN 4428 [BEGIN] Transaction id 114
+LSN 4456 [BEGIN] Transaction id 115
+LSN 4484 [BEGIN] Transaction id 116
+LSN 4512 [BEGIN] Transaction id 117
+LSN 4540 [BEGIN] Transaction id 118
+LSN 4568 [BEGIN] Transaction id 119
+LSN 4596 [BEGIN] Transaction id 120
+LSN 4624 [BEGIN] Transaction id 121
+LSN 4652 [BEGIN] Transaction id 122
+LSN 4680 [BEGIN] Transaction id 123
+LSN 4708 [BEGIN] Transaction id 124
+LSN 4736 [BEGIN] Transaction id 125
+LSN 4764 [BEGIN] Transaction id 126
+LSN 4792 [BEGIN] Transaction id 127
+LSN 4820 [BEGIN] Transaction id 128
+LSN 4848 [BEGIN] Transaction id 129
+LSN 4876 [BEGIN] Transaction id 130
+LSN 4904 [BEGIN] Transaction id 131
+LSN 4932 [BEGIN] Transaction id 132
+LSN 4960 [BEGIN] Transaction id 133
+LSN 4988 [BEGIN] Transaction id 134
+LSN 5016 [BEGIN] Transaction id 135
+LSN 5044 [BEGIN] Transaction id 136
+LSN 5072 [BEGIN] Transaction id 137
+LSN 5100 [BEGIN] Transaction id 138
+LSN 5128 [BEGIN] Transaction id 139
+LSN 5156 [BEGIN] Transaction id 140
+LSN 5184 [BEGIN] Transaction id 141
+LSN 5212 [BEGIN] Transaction id 142
+LSN 5240 [BEGIN] Transaction id 143
+LSN 5268 [BEGIN] Transaction id 144
+LSN 5296 [BEGIN] Transaction id 145
+LSN 5324 [BEGIN] Transaction id 146
+LSN 5352 [BEGIN] Transaction id 147
+LSN 5380 [BEGIN] Transaction id 148
+LSN 5408 [BEGIN] Transaction id 149
+LSN 5436 [BEGIN] Transaction id 150
+LSN 5464 [BEGIN] Transaction id 151
+LSN 5492 [BEGIN] Transaction id 152
+LSN 5520 [BEGIN] Transaction id 153
+LSN 5548 [BEGIN] Transaction id 154
+LSN 5576 [BEGIN] Transaction id 155
+LSN 5604 [BEGIN] Transaction id 156
+LSN 5632 [BEGIN] Transaction id 157
+LSN 5660 [BEGIN] Transaction id 158
+LSN 5688 [BEGIN] Transaction id 159
+LSN 5716 [BEGIN] Transaction id 160
+LSN 5744 [BEGIN] Transaction id 161
+LSN 5772 [BEGIN] Transaction id 162
+LSN 5800 [BEGIN] Transaction id 163
+LSN 5828 [BEGIN] Transaction id 164
+LSN 5856 [BEGIN] Transaction id 165
+LSN 5884 [BEGIN] Transaction id 166
+LSN 5912 [BEGIN] Transaction id 167
+LSN 5940 [BEGIN] Transaction id 168
+LSN 5968 [BEGIN] Transaction id 169
+LSN 5996 [BEGIN] Transaction id 170
+LSN 6024 [BEGIN] Transaction id 171
+LSN 6052 [BEGIN] Transaction id 172
+LSN 6080 [BEGIN] Transaction id 173
+LSN 6108 [BEGIN] Transaction id 174
+LSN 6136 [BEGIN] Transaction id 175
+LSN 6164 [BEGIN] Transaction id 176
+LSN 6192 [BEGIN] Transaction id 177
+LSN 6220 [BEGIN] Transaction id 178
+LSN 6248 [BEGIN] Transaction id 179
+LSN 6276 [BEGIN] Transaction id 180
+LSN 6304 [BEGIN] Transaction id 181
+LSN 6332 [BEGIN] Transaction id 182
+LSN 6360 [BEGIN] Transaction id 183
+LSN 6388 [BEGIN] Transaction id 184
+LSN 6416 [BEGIN] Transaction id 185
+LSN 6444 [BEGIN] Transaction id 186
+LSN 6472 [BEGIN] Transaction id 187
+LSN 6500 [BEGIN] Transaction id 188
+LSN 6528 [BEGIN] Transaction id 189
+LSN 6556 [BEGIN] Transaction id 190
+LSN 6584 [BEGIN] Transaction id 191
+LSN 6612 [BEGIN] Transaction id 192
+LSN 6640 [BEGIN] Transaction id 193
+LSN 6668 [BEGIN] Transaction id 194
+LSN 6696 [BEGIN] Transaction id 195
+LSN 6724 [BEGIN] Transaction id 196
+LSN 6752 [BEGIN] Transaction id 197
+LSN 6780 [BEGIN] Transaction id 198
+LSN 6808 [BEGIN] Transaction id 199
+LSN 6836 [BEGIN] Transaction id 200
+LSN 6864 [BEGIN] Transaction id 201
+LSN 6892 [BEGIN] Transaction id 202
+LSN 6920 [BEGIN] Transaction id 203
+LSN 6948 [BEGIN] Transaction id 204
+LSN 6976 [BEGIN] Transaction id 205
+LSN 7004 [BEGIN] Transaction id 206
+LSN 7032 [BEGIN] Transaction id 207
+LSN 7060 [BEGIN] Transaction id 208
+LSN 7088 [BEGIN] Transaction id 209
+LSN 7116 [BEGIN] Transaction id 210
+LSN 7144 [BEGIN] Transaction id 211
+LSN 7172 [BEGIN] Transaction id 212
+LSN 7200 [BEGIN] Transaction id 213
+LSN 7228 [BEGIN] Transaction id 214
+LSN 7256 [BEGIN] Transaction id 215
+LSN 7284 [BEGIN] Transaction id 216
+LSN 7312 [BEGIN] Transaction id 217
+LSN 7340 [BEGIN] Transaction id 218
+LSN 7368 [BEGIN] Transaction id 219
+LSN 7396 [BEGIN] Transaction id 220
+LSN 7424 [BEGIN] Transaction id 221
+LSN 7452 [BEGIN] Transaction id 222
+LSN 7480 [BEGIN] Transaction id 223
+LSN 7508 [BEGIN] Transaction id 224
+LSN 7536 [BEGIN] Transaction id 225
+LSN 7564 [BEGIN] Transaction id 226
+LSN 7592 [BEGIN] Transaction id 227
+LSN 7620 [BEGIN] Transaction id 228
+LSN 7648 [BEGIN] Transaction id 229
+LSN 7676 [BEGIN] Transaction id 230
+LSN 7704 [BEGIN] Transaction id 231
+LSN 7732 [BEGIN] Transaction id 232
+LSN 7760 [BEGIN] Transaction id 233
+LSN 7788 [BEGIN] Transaction id 234
+LSN 7816 [BEGIN] Transaction id 235
+LSN 7844 [BEGIN] Transaction id 236
+LSN 7872 [BEGIN] Transaction id 237
+LSN 7900 [BEGIN] Transaction id 238
+LSN 7928 [BEGIN] Transaction id 239
+LSN 7956 [BEGIN] Transaction id 240
+LSN 7984 [BEGIN] Transaction id 241
+LSN 8012 [BEGIN] Transaction id 242
+LSN 8040 [BEGIN] Transaction id 243
+LSN 8068 [BEGIN] Transaction id 244
+LSN 8096 [BEGIN] Transaction id 245
+LSN 8124 [BEGIN] Transaction id 246
+LSN 8152 [BEGIN] Transaction id 247
+LSN 8180 [BEGIN] Transaction id 248
+LSN 8208 [BEGIN] Transaction id 249
+LSN 8236 [BEGIN] Transaction id 250
+LSN 8264 [BEGIN] Transaction id 251
+LSN 8292 [BEGIN] Transaction id 252
+LSN 8320 [BEGIN] Transaction id 253
+LSN 8348 [BEGIN] Transaction id 254
+LSN 8376 [BEGIN] Transaction id 255
+LSN 8404 [BEGIN] Transaction id 256
+LSN 8432 [BEGIN] Transaction id 257
+LSN 8460 [BEGIN] Transaction id 258
+LSN 8488 [BEGIN] Transaction id 259
+LSN 8516 [BEGIN] Transaction id 260
+LSN 8544 [BEGIN] Transaction id 261
+LSN 8572 [BEGIN] Transaction id 262
+LSN 8600 [BEGIN] Transaction id 263
+LSN 8628 [BEGIN] Transaction id 264
+LSN 8656 [BEGIN] Transaction id 265
+LSN 8684 [BEGIN] Transaction id 266
+LSN 8712 [BEGIN] Transaction id 267
+LSN 8740 [BEGIN] Transaction id 268
+LSN 8768 [BEGIN] Transaction id 269
+LSN 8796 [BEGIN] Transaction id 270
+LSN 8824 [BEGIN] Transaction id 271
+LSN 8852 [BEGIN] Transaction id 272
+LSN 8880 [BEGIN] Transaction id 273
+LSN 8908 [BEGIN] Transaction id 274
+LSN 8936 [BEGIN] Transaction id 275
+LSN 8964 [BEGIN] Transaction id 276
+LSN 8992 [BEGIN] Transaction id 277
+LSN 9020 [BEGIN] Transaction id 278
+LSN 9048 [BEGIN] Transaction id 279
+LSN 9076 [BEGIN] Transaction id 280
+LSN 9104 [BEGIN] Transaction id 281
+LSN 9132 [BEGIN] Transaction id 282
+LSN 9160 [BEGIN] Transaction id 283
+LSN 9188 [BEGIN] Transaction id 284
+LSN 9216 [BEGIN] Transaction id 285
+LSN 9244 [BEGIN] Transaction id 286
+LSN 9272 [BEGIN] Transaction id 287
+LSN 9300 [BEGIN] Transaction id 288
+LSN 9328 [BEGIN] Transaction id 289
+LSN 9356 [BEGIN] Transaction id 290
+LSN 9384 [BEGIN] Transaction id 291
+LSN 9412 [BEGIN] Transaction id 292
+LSN 9440 [BEGIN] Transaction id 293
+LSN 9468 [BEGIN] Transaction id 294
+LSN 9496 [BEGIN] Transaction id 295
+LSN 9524 [BEGIN] Transaction id 296
+LSN 9552 [BEGIN] Transaction id 297
+LSN 9580 [BEGIN] Transaction id 298
+LSN 9608 [BEGIN] Transaction id 299
+LSN 9636 [BEGIN] Transaction id 300
+LSN 9664 [BEGIN] Transaction id 301
+LSN 9692 [BEGIN] Transaction id 302
+LSN 9720 [BEGIN] Transaction id 303
+LSN 9748 [BEGIN] Transaction id 304
+LSN 9776 [BEGIN] Transaction id 305
+LSN 9804 [BEGIN] Transaction id 306
+LSN 9832 [BEGIN] Transaction id 307
+LSN 9860 [BEGIN] Transaction id 308
+LSN 9888 [BEGIN] Transaction id 309
+LSN 9916 [BEGIN] Transaction id 310
+LSN 9944 [BEGIN] Transaction id 311
+LSN 9972 [BEGIN] Transaction id 312
+LSN 10000 [BEGIN] Transaction id 313
+LSN 10028 [BEGIN] Transaction id 314
+LSN 10056 [BEGIN] Transaction id 315
+LSN 10084 [BEGIN] Transaction id 316
+LSN 10112 [BEGIN] Transaction id 317
+LSN 10140 [BEGIN] Transaction id 318
+LSN 10168 [BEGIN] Transaction id 319
+LSN 10196 [BEGIN] Transaction id 320
+LSN 10224 [BEGIN] Transaction id 321
+LSN 10252 [BEGIN] Transaction id 322
+LSN 10280 [BEGIN] Transaction id 323
+LSN 10308 [BEGIN] Transaction id 324
+LSN 10336 [BEGIN] Transaction id 325
+LSN 10364 [BEGIN] Transaction id 326
+LSN 10392 [BEGIN] Transaction id 327
+LSN 10420 [BEGIN] Transaction id 328
+LSN 10448 [BEGIN] Transaction id 329
+LSN 10476 [BEGIN] Transaction id 330
+LSN 10504 [BEGIN] Transaction id 331
+LSN 10532 [BEGIN] Transaction id 332
+LSN 10560 [BEGIN] Transaction id 333
+LSN 10588 [BEGIN] Transaction id 334
+LSN 10616 [BEGIN] Transaction id 335
+LSN 10644 [BEGIN] Transaction id 336
+LSN 10672 [BEGIN] Transaction id 337
+LSN 10700 [BEGIN] Transaction id 338
+LSN 10728 [BEGIN] Transaction id 339
+LSN 10756 [BEGIN] Transaction id 340
+LSN 10784 [BEGIN] Transaction id 341
+LSN 10812 [BEGIN] Transaction id 342
+LSN 10840 [BEGIN] Transaction id 343
+LSN 10868 [BEGIN] Transaction id 344
+LSN 10896 [BEGIN] Transaction id 345
+LSN 10924 [BEGIN] Transaction id 346
+LSN 10952 [BEGIN] Transaction id 347
+LSN 10980 [BEGIN] Transaction id 348
+LSN 11008 [BEGIN] Transaction id 349
+LSN 11036 [BEGIN] Transaction id 350
+LSN 11064 [BEGIN] Transaction id 351
+LSN 11092 [BEGIN] Transaction id 352
+LSN 11120 [BEGIN] Transaction id 353
+LSN 11148 [BEGIN] Transaction id 354
+LSN 11176 [BEGIN] Transaction id 355
+LSN 11204 [BEGIN] Transaction id 356
+LSN 11232 [BEGIN] Transaction id 357
+LSN 11260 [BEGIN] Transaction id 358
+LSN 11288 [BEGIN] Transaction id 359
+LSN 11316 [BEGIN] Transaction id 360
+LSN 11344 [BEGIN] Transaction id 361
+LSN 11372 [BEGIN] Transaction id 362
+LSN 11400 [BEGIN] Transaction id 363
+LSN 11428 [BEGIN] Transaction id 364
+LSN 11456 [BEGIN] Transaction id 365
+LSN 11484 [BEGIN] Transaction id 366
+LSN 11512 [BEGIN] Transaction id 367
+LSN 11540 [BEGIN] Transaction id 368
+LSN 11568 [BEGIN] Transaction id 369
+LSN 11596 [BEGIN] Transaction id 370
+LSN 11624 [BEGIN] Transaction id 371
+LSN 11652 [BEGIN] Transaction id 372
+LSN 11680 [BEGIN] Transaction id 373
+LSN 11708 [BEGIN] Transaction id 374
+LSN 11736 [BEGIN] Transaction id 375
+LSN 11764 [BEGIN] Transaction id 376
+LSN 11792 [BEGIN] Transaction id 377
+LSN 11820 [BEGIN] Transaction id 378
+LSN 11848 [BEGIN] Transaction id 379
+LSN 11876 [BEGIN] Transaction id 380
+LSN 11904 [BEGIN] Transaction id 381
+LSN 11932 [BEGIN] Transaction id 382
+LSN 11960 [BEGIN] Transaction id 383
+LSN 11988 [BEGIN] Transaction id 384
+LSN 12016 [BEGIN] Transaction id 385
+LSN 12044 [BEGIN] Transaction id 386
+LSN 12072 [BEGIN] Transaction id 387
+LSN 12100 [BEGIN] Transaction id 388
+LSN 12128 [BEGIN] Transaction id 389
+LSN 12156 [BEGIN] Transaction id 390
+LSN 12184 [BEGIN] Transaction id 391
+LSN 12212 [BEGIN] Transaction id 392
+LSN 12240 [BEGIN] Transaction id 393
+LSN 12268 [BEGIN] Transaction id 394
+LSN 12296 [BEGIN] Transaction id 395
+LSN 12324 [BEGIN] Transaction id 396
+LSN 12352 [BEGIN] Transaction id 397
+LSN 12380 [BEGIN] Transaction id 398
+LSN 12408 [BEGIN] Transaction id 399
+LSN 12436 [BEGIN] Transaction id 400
+LSN 12464 [BEGIN] Transaction id 401
+LSN 12492 [BEGIN] Transaction id 402
+LSN 12520 [BEGIN] Transaction id 403
+LSN 12548 [BEGIN] Transaction id 404
+LSN 12576 [BEGIN] Transaction id 405
+LSN 12604 [BEGIN] Transaction id 406
+LSN 12632 [BEGIN] Transaction id 407
+LSN 12660 [BEGIN] Transaction id 408
+LSN 12688 [BEGIN] Transaction id 409
+LSN 12716 [BEGIN] Transaction id 410
+LSN 12744 [BEGIN] Transaction id 411
+LSN 12772 [BEGIN] Transaction id 412
+LSN 12800 [BEGIN] Transaction id 413
+LSN 12828 [BEGIN] Transaction id 414
+LSN 12856 [BEGIN] Transaction id 415
+LSN 12884 [BEGIN] Transaction id 416
+LSN 12912 [BEGIN] Transaction id 417
+LSN 12940 [BEGIN] Transaction id 418
+LSN 12968 [BEGIN] Transaction id 419
+LSN 12996 [BEGIN] Transaction id 420
+LSN 13024 [BEGIN] Transaction id 421
+LSN 13052 [BEGIN] Transaction id 422
+LSN 13080 [BEGIN] Transaction id 423
+LSN 13108 [BEGIN] Transaction id 424
+LSN 13136 [BEGIN] Transaction id 425
+LSN 13164 [BEGIN] Transaction id 426
+LSN 13192 [BEGIN] Transaction id 427
+LSN 13220 [BEGIN] Transaction id 428
+LSN 13248 [BEGIN] Transaction id 429
+LSN 13276 [BEGIN] Transaction id 430
+LSN 13304 [BEGIN] Transaction id 431
+LSN 13332 [BEGIN] Transaction id 432
+LSN 13360 [BEGIN] Transaction id 433
+LSN 13388 [BEGIN] Transaction id 434
+LSN 13416 [BEGIN] Transaction id 435
+LSN 13444 [BEGIN] Transaction id 436
+LSN 13472 [BEGIN] Transaction id 437
+LSN 13500 [BEGIN] Transaction id 438
+LSN 13528 [BEGIN] Transaction id 439
+LSN 13556 [BEGIN] Transaction id 440
+LSN 13584 [BEGIN] Transaction id 441
+LSN 13612 [BEGIN] Transaction id 442
+LSN 13640 [BEGIN] Transaction id 443
+LSN 13668 [BEGIN] Transaction id 444
+LSN 13696 [BEGIN] Transaction id 445
+LSN 13724 [BEGIN] Transaction id 446
+LSN 13752 [BEGIN] Transaction id 447
+LSN 13780 [BEGIN] Transaction id 448
+LSN 13808 [BEGIN] Transaction id 449
+LSN 13836 [BEGIN] Transaction id 450
+LSN 13864 [BEGIN] Transaction id 451
+LSN 13892 [BEGIN] Transaction id 452
+LSN 13920 [BEGIN] Transaction id 453
+LSN 13948 [BEGIN] Transaction id 454
+LSN 13976 [BEGIN] Transaction id 455
+LSN 14004 [BEGIN] Transaction id 456
+LSN 14032 [BEGIN] Transaction id 457
+LSN 14060 [BEGIN] Transaction id 458
+LSN 14088 [BEGIN] Transaction id 459
+LSN 14116 [BEGIN] Transaction id 460
+LSN 14144 [BEGIN] Transaction id 461
+LSN 14172 [BEGIN] Transaction id 462
+LSN 14200 [BEGIN] Transaction id 463
+LSN 14228 [BEGIN] Transaction id 464
+LSN 14256 [BEGIN] Transaction id 465
+LSN 14284 [BEGIN] Transaction id 466
+LSN 14312 [BEGIN] Transaction id 467
+LSN 14340 [BEGIN] Transaction id 468
+LSN 14368 [BEGIN] Transaction id 469
+LSN 14396 [BEGIN] Transaction id 470
+LSN 14424 [BEGIN] Transaction id 471
+LSN 14452 [BEGIN] Transaction id 472
+LSN 14480 [BEGIN] Transaction id 473
+LSN 14508 [BEGIN] Transaction id 474
+LSN 14536 [BEGIN] Transaction id 475
+LSN 14564 [BEGIN] Transaction id 476
+LSN 14592 [BEGIN] Transaction id 477
+LSN 14620 [BEGIN] Transaction id 478
+LSN 14648 [BEGIN] Transaction id 479
+LSN 14676 [BEGIN] Transaction id 480
+LSN 14704 [BEGIN] Transaction id 481
+LSN 14732 [BEGIN] Transaction id 482
+LSN 14760 [BEGIN] Transaction id 483
+LSN 14788 [BEGIN] Transaction id 484
+LSN 14816 [BEGIN] Transaction id 485
+LSN 14844 [BEGIN] Transaction id 486
+LSN 14872 [BEGIN] Transaction id 487
+LSN 14900 [BEGIN] Transaction id 488
+LSN 14928 [BEGIN] Transaction id 489
+LSN 14956 [BEGIN] Transaction id 490
+LSN 14984 [BEGIN] Transaction id 491
+LSN 15012 [BEGIN] Transaction id 492
+LSN 15040 [BEGIN] Transaction id 493
+LSN 15068 [BEGIN] Transaction id 494
+LSN 15096 [BEGIN] Transaction id 495
+LSN 15124 [BEGIN] Transaction id 496
+LSN 15152 [BEGIN] Transaction id 497
+LSN 15180 [BEGIN] Transaction id 498
+LSN 15208 [BEGIN] Transaction id 499
+LSN 15236 [BEGIN] Transaction id 500
+LSN 15264 [BEGIN] Transaction id 501
+LSN 15292 [BEGIN] Transaction id 502
+LSN 15320 [BEGIN] Transaction id 503
+LSN 15348 [BEGIN] Transaction id 504
+LSN 15376 [BEGIN] Transaction id 505
+LSN 15404 [BEGIN] Transaction id 506
+LSN 15432 [BEGIN] Transaction id 507
+LSN 15460 [BEGIN] Transaction id 508
+LSN 15488 [BEGIN] Transaction id 509
+LSN 15516 [BEGIN] Transaction id 510
+LSN 15544 [BEGIN] Transaction id 511
+LSN 15572 [BEGIN] Transaction id 512
+LSN 15600 [BEGIN] Transaction id 513
+LSN 15628 [BEGIN] Transaction id 514
+LSN 15656 [BEGIN] Transaction id 515
+LSN 15684 [BEGIN] Transaction id 516
+LSN 15712 [BEGIN] Transaction id 517
+LSN 15740 [BEGIN] Transaction id 518
+LSN 15768 [BEGIN] Transaction id 519
+LSN 15796 [BEGIN] Transaction id 520
+LSN 15824 [BEGIN] Transaction id 521
+LSN 15852 [BEGIN] Transaction id 522
+LSN 15880 [BEGIN] Transaction id 523
+LSN 15908 [BEGIN] Transaction id 524
+LSN 15936 [BEGIN] Transaction id 525
+LSN 15964 [BEGIN] Transaction id 526
+LSN 15992 [BEGIN] Transaction id 527
+LSN 16020 [BEGIN] Transaction id 528
+LSN 16048 [BEGIN] Transaction id 529
+LSN 16076 [BEGIN] Transaction id 530
+LSN 16104 [BEGIN] Transaction id 531
+LSN 16132 [BEGIN] Transaction id 532
+LSN 16160 [BEGIN] Transaction id 533
+LSN 16188 [BEGIN] Transaction id 534
+LSN 16216 [BEGIN] Transaction id 535
+LSN 16244 [BEGIN] Transaction id 536
+LSN 16272 [BEGIN] Transaction id 537
+LSN 16300 [BEGIN] Transaction id 538
+LSN 16328 [BEGIN] Transaction id 539
+LSN 16356 [BEGIN] Transaction id 540
+LSN 16384 [BEGIN] Transaction id 541
+LSN 16412 [BEGIN] Transaction id 542
+LSN 16440 [BEGIN] Transaction id 543
+LSN 16468 [BEGIN] Transaction id 544
+LSN 16496 [BEGIN] Transaction id 545
+LSN 16524 [BEGIN] Transaction id 546
+LSN 16552 [BEGIN] Transaction id 547
+LSN 16580 [BEGIN] Transaction id 548
+LSN 16608 [BEGIN] Transaction id 549
+LSN 16636 [BEGIN] Transaction id 550
+LSN 16664 [BEGIN] Transaction id 551
+LSN 16692 [BEGIN] Transaction id 552
+LSN 16720 [BEGIN] Transaction id 553
+LSN 16748 [BEGIN] Transaction id 554
+LSN 16776 [BEGIN] Transaction id 555
+LSN 16804 [BEGIN] Transaction id 556
+LSN 16832 [BEGIN] Transaction id 557
+LSN 16860 [BEGIN] Transaction id 558
+LSN 16888 [BEGIN] Transaction id 559
+LSN 16916 [BEGIN] Transaction id 560
+LSN 16944 [BEGIN] Transaction id 561
+LSN 16972 [BEGIN] Transaction id 562
+LSN 17000 [BEGIN] Transaction id 563
+LSN 17028 [BEGIN] Transaction id 564
+LSN 17056 [BEGIN] Transaction id 565
+LSN 17084 [BEGIN] Transaction id 566
+LSN 17112 [BEGIN] Transaction id 567
+LSN 17140 [BEGIN] Transaction id 568
+LSN 17168 [BEGIN] Transaction id 569
+LSN 17196 [BEGIN] Transaction id 570
+LSN 17224 [BEGIN] Transaction id 571
+LSN 17512 [CONSIDER_REDO] Transaction id 9 redo 
+LSN 17800 [CONSIDER_REDO] Transaction id 11 redo 
+LSN 18088 [CONSIDER_REDO] Transaction id 13 redo 
+LSN 18376 [CONSIDER_REDO] Transaction id 15 redo 
+LSN 18664 [CONSIDER_REDO] Transaction id 20 redo 
+LSN 18952 [CONSIDER_REDO] Transaction id 24 redo 
+LSN 19240 [CONSIDER_REDO] Transaction id 22 redo 
+LSN 19528 [CONSIDER_REDO] Transaction id 18 redo 
+LSN 19816 [CONSIDER_REDO] Transaction id 26 redo 
+LSN 20104 [CONSIDER_REDO] Transaction id 29 redo 
+LSN 20392 [CONSIDER_REDO] Transaction id 31 redo 
+LSN 20680 [CONSIDER_REDO] Transaction id 33 redo 
+LSN 20968 [CONSIDER_REDO] Transaction id 35 redo 
+LSN 21256 [CONSIDER_REDO] Transaction id 37 redo 
+LSN 21544 [CONSIDER_REDO] Transaction id 39 redo 
+LSN 21832 [CONSIDER_REDO] Transaction id 41 redo 
+LSN 22120 [CONSIDER_REDO] Transaction id 48 redo 
+LSN 22408 [CONSIDER_REDO] Transaction id 50 redo 
+LSN 22696 [CONSIDER_REDO] Transaction id 52 redo 
+LSN 22984 [CONSIDER_REDO] Transaction id 54 redo 
+LSN 23272 [CONSIDER_REDO] Transaction id 58 redo 
+LSN 23560 [CONSIDER_REDO] Transaction id 64 redo 
+LSN 23848 [CONSIDER_REDO] Transaction id 68 redo 
+LSN 24136 [CONSIDER_REDO] Transaction id 70 redo 
+LSN 24424 [CONSIDER_REDO] Transaction id 72 redo 
+LSN 24712 [CONSIDER_REDO] Transaction id 76 redo 
+LSN 25000 [CONSIDER_REDO] Transaction id 78 redo 
+LSN 25288 [CONSIDER_REDO] Transaction id 80 redo 
+LSN 25576 [CONSIDER_REDO] Transaction id 86 redo 
+LSN 25864 [CONSIDER_REDO] Transaction id 88 redo 
+LSN 26152 [CONSIDER_REDO] Transaction id 102 redo 
+LSN 26440 [CONSIDER_REDO] Transaction id 106 redo 
+LSN 26728 [CONSIDER_REDO] Transaction id 116 redo 
+LSN 27016 [CONSIDER_REDO] Transaction id 118 redo 
+LSN 27304 [CONSIDER_REDO] Transaction id 120 redo 
+LSN 27592 [CONSIDER_REDO] Transaction id 122 redo 
+LSN 27880 [CONSIDER_REDO] Transaction id 124 redo 
+LSN 28168 [CONSIDER_REDO] Transaction id 126 redo 
+LSN 28456 [CONSIDER_REDO] Transaction id 128 redo 
+LSN 28744 [CONSIDER_REDO] Transaction id 130 redo 
+LSN 29032 [CONSIDER_REDO] Transaction id 132 redo 
+LSN 29320 [CONSIDER_REDO] Transaction id 134 redo 
+LSN 29608 [CONSIDER_REDO] Transaction id 136 redo 
+LSN 29896 [CONSIDER_REDO] Transaction id 138 redo 
+LSN 30184 [CONSIDER_REDO] Transaction id 140 redo 
+LSN 30472 [CONSIDER_REDO] Transaction id 188 redo 
+LSN 30760 [CONSIDER_REDO] Transaction id 193 redo 
+LSN 31048 [CONSIDER_REDO] Transaction id 195 redo 
+LSN 31336 [CONSIDER_REDO] Transaction id 197 redo 
+LSN 31624 [CONSIDER_REDO] Transaction id 199 redo 
+LSN 31912 [CONSIDER_REDO] Transaction id 201 redo 
+LSN 32200 [CONSIDER_REDO] Transaction id 301 redo 
+LSN 32488 [CONSIDER_REDO] Transaction id 303 redo 
+LSN 32776 [CONSIDER_REDO] Transaction id 305 redo 
+LSN 33064 [CONSIDER_REDO] Transaction id 307 redo 
+LSN 33352 [CONSIDER_REDO] Transaction id 309 redo 
+LSN 33640 [CONSIDER_REDO] Transaction id 311 redo 
+LSN 33928 [CONSIDER_REDO] Transaction id 313 redo 
+LSN 34216 [CONSIDER_REDO] Transaction id 325 redo 
+LSN 34504 [CONSIDER_REDO] Transaction id 327 redo 
+LSN 34792 [CONSIDER_REDO] Transaction id 329 redo 
+LSN 35080 [CONSIDER_REDO] Transaction id 331 redo 
+LSN 35368 [CONSIDER_REDO] Transaction id 333 redo 
+LSN 35656 [CONSIDER_REDO] Transaction id 335 redo 
+LSN 35944 [CONSIDER_REDO] Transaction id 337 redo 
+LSN 36232 [CONSIDER_REDO] Transaction id 341 redo 
+LSN 36520 [CONSIDER_REDO] Transaction id 343 redo 
+LSN 36808 [CONSIDER_REDO] Transaction id 349 redo 
+LSN 37096 [CONSIDER_REDO] Transaction id 353 redo 
+LSN 37384 [CONSIDER_REDO] Transaction id 355 redo 
+LSN 37672 [CONSIDER_REDO] Transaction id 361 redo 
+LSN 37960 [CONSIDER_REDO] Transaction id 363 redo 
+LSN 38248 [CONSIDER_REDO] Transaction id 367 redo 
+LSN 38536 [CONSIDER_REDO] Transaction id 371 redo 
+LSN 38824 [CONSIDER_REDO] Transaction id 373 redo 
+LSN 39112 [CONSIDER_REDO] Transaction id 379 redo 
+LSN 39400 [CONSIDER_REDO] Transaction id 381 redo 
+LSN 39688 [CONSIDER_REDO] Transaction id 386 redo 
+LSN 39976 [CONSIDER_REDO] Transaction id 388 redo 
+LSN 40264 [CONSIDER_REDO] Transaction id 394 redo 
+LSN 40552 [CONSIDER_REDO] Transaction id 395 redo 
+LSN 40840 [CONSIDER_REDO] Transaction id 397 redo 
+LSN 41128 [CONSIDER_REDO] Transaction id 405 redo 
+LSN 41416 [CONSIDER_REDO] Transaction id 409 redo 
+LSN 41704 [CONSIDER_REDO] Transaction id 28 redo 
+LSN 41992 [CONSIDER_REDO] Transaction id 45 redo 
+LSN 42280 [CONSIDER_REDO] Transaction id 57 redo 
+LSN 42568 [CONSIDER_REDO] Transaction id 69 redo 
+LSN 42856 [CONSIDER_REDO] Transaction id 81 redo 
+LSN 43144 [CONSIDER_REDO] Transaction id 89 redo 
+LSN 43432 [CONSIDER_REDO] Transaction id 97 redo 
+LSN 43720 [CONSIDER_REDO] Transaction id 105 redo 
+LSN 44008 [CONSIDER_REDO] Transaction id 109 redo 
+LSN 44296 [CONSIDER_REDO] Transaction id 114 redo 
+LSN 44584 [CONSIDER_REDO] Transaction id 143 redo 
+LSN 44872 [CONSIDER_REDO] Transaction id 147 redo 
+LSN 45160 [CONSIDER_REDO] Transaction id 151 redo 
+LSN 45448 [CONSIDER_REDO] Transaction id 155 redo 
+LSN 45736 [CONSIDER_REDO] Transaction id 159 redo 
+LSN 46024 [CONSIDER_REDO] Transaction id 163 redo 
+LSN 46312 [CONSIDER_REDO] Transaction id 167 redo 
+LSN 46600 [CONSIDER_REDO] Transaction id 171 redo 
+LSN 46888 [CONSIDER_REDO] Transaction id 175 redo 
+LSN 47176 [CONSIDER_REDO] Transaction id 179 redo 
+LSN 47464 [CONSIDER_REDO] Transaction id 183 redo 
+LSN 47752 [CONSIDER_REDO] Transaction id 191 redo 
+LSN 48040 [CONSIDER_REDO] Transaction id 204 redo 
+LSN 48328 [CONSIDER_REDO] Transaction id 208 redo 
+LSN 48616 [CONSIDER_REDO] Transaction id 212 redo 
+LSN 48904 [CONSIDER_REDO] Transaction id 216 redo 
+LSN 49192 [CONSIDER_REDO] Transaction id 220 redo 
+LSN 49480 [CONSIDER_REDO] Transaction id 224 redo 
+LSN 49768 [CONSIDER_REDO] Transaction id 228 redo 
+LSN 50056 [CONSIDER_REDO] Transaction id 232 redo 
+LSN 50344 [CONSIDER_REDO] Transaction id 236 redo 
+LSN 50632 [CONSIDER_REDO] Transaction id 240 redo 
+LSN 50920 [CONSIDER_REDO] Transaction id 244 redo 
+LSN 51208 [CONSIDER_REDO] Transaction id 248 redo 
+LSN 51496 [CONSIDER_REDO] Transaction id 252 redo 
+LSN 51784 [CONSIDER_REDO] Transaction id 256 redo 
+LSN 52072 [CONSIDER_REDO] Transaction id 260 redo 
+LSN 52360 [CONSIDER_REDO] Transaction id 264 redo 
+LSN 52648 [CONSIDER_REDO] Transaction id 268 redo 
+LSN 52936 [CONSIDER_REDO] Transaction id 272 redo 
+LSN 53224 [CONSIDER_REDO] Transaction id 276 redo 
+LSN 53512 [CONSIDER_REDO] Transaction id 280 redo 
+LSN 53800 [CONSIDER_REDO] Transaction id 284 redo 
+LSN 54088 [CONSIDER_REDO] Transaction id 288 redo 
+LSN 54376 [CONSIDER_REDO] Transaction id 292 redo 
+LSN 54664 [CONSIDER_REDO] Transaction id 296 redo 
+LSN 54952 [CONSIDER_REDO] Transaction id 300 redo 
+LSN 55240 [CONSIDER_REDO] Transaction id 316 redo 
+LSN 55528 [CONSIDER_REDO] Transaction id 320 redo 
+LSN 55816 [CONSIDER_REDO] Transaction id 324 redo 
+LSN 56104 [CONSIDER_REDO] Transaction id 340 redo 
+LSN 56392 [CONSIDER_REDO] Transaction id 348 redo 
+LSN 56680 [CONSIDER_REDO] Transaction id 352 redo 
+LSN 56968 [CONSIDER_REDO] Transaction id 364 redo 
+LSN 57256 [CONSIDER_REDO] Transaction id 376 redo 
+LSN 57544 [CONSIDER_REDO] Transaction id 380 redo 
+LSN 57832 [CONSIDER_REDO] Transaction id 391 redo 
+LSN 58120 [CONSIDER_REDO] Transaction id 400 redo 
+LSN 58408 [CONSIDER_REDO] Transaction id 408 redo 
+LSN 58696 [CONSIDER_REDO] Transaction id 411 redo 
+LSN 58984 [CONSIDER_REDO] Transaction id 63 redo 
+LSN 59272 [CONSIDER_REDO] Transaction id 71 redo 
+LSN 59560 [CONSIDER_REDO] Transaction id 79 redo 
+LSN 59848 [CONSIDER_REDO] Transaction id 103 redo 
+LSN 60136 [CONSIDER_REDO] Transaction id 111 redo 
+LSN 60424 [CONSIDER_REDO] Transaction id 145 redo 
+LSN 60712 [CONSIDER_REDO] Transaction id 153 redo 
+LSN 61000 [CONSIDER_REDO] Transaction id 161 redo 
+LSN 61288 [CONSIDER_REDO] Transaction id 165 redo 
+LSN 61576 [CONSIDER_REDO] Transaction id 173 redo 
+LSN 61864 [CONSIDER_REDO] Transaction id 181 redo 
+LSN 62152 [CONSIDER_REDO] Transaction id 189 redo 
+LSN 62440 [CONSIDER_REDO] Transaction id 206 redo 
+LSN 62728 [CONSIDER_REDO] Transaction id 214 redo 
+LSN 63016 [CONSIDER_REDO] Transaction id 222 redo 
+LSN 63304 [CONSIDER_REDO] Transaction id 230 redo 
+LSN 63592 [CONSIDER_REDO] Transaction id 238 redo 
+LSN 63880 [CONSIDER_REDO] Transaction id 246 redo 
+LSN 64168 [CONSIDER_REDO] Transaction id 254 redo 
+LSN 64456 [CONSIDER_REDO] Transaction id 262 redo 
+LSN 64744 [CONSIDER_REDO] Transaction id 270 redo 
+LSN 65032 [CONSIDER_REDO] Transaction id 278 redo 
+LSN 65320 [CONSIDER_REDO] Transaction id 286 redo 
+LSN 65608 [CONSIDER_REDO] Transaction id 294 redo 
+LSN 65896 [CONSIDER_REDO] Transaction id 318 redo 
+LSN 66184 [CONSIDER_REDO] Transaction id 374 redo 
+LSN 66472 [CONSIDER_REDO] Transaction id 385 redo 
+LSN 66760 [CONSIDER_REDO] Transaction id 393 redo 
+LSN 67048 [CONSIDER_REDO] Transaction id 43 redo 
+LSN 67336 [CONSIDER_REDO] Transaction id 59 redo 
+LSN 67624 [CONSIDER_REDO] Transaction id 75 redo 
+LSN 67912 [CONSIDER_REDO] Transaction id 91 redo 
+LSN 68200 [CONSIDER_REDO] Transaction id 141 redo 
+LSN 68488 [CONSIDER_REDO] Transaction id 157 redo 
+LSN 68776 [CONSIDER_REDO] Transaction id 169 redo 
+LSN 69064 [CONSIDER_REDO] Transaction id 185 redo 
+LSN 69352 [CONSIDER_REDO] Transaction id 218 redo 
+LSN 69640 [CONSIDER_REDO] Transaction id 234 redo 
+LSN 69928 [CONSIDER_REDO] Transaction id 250 redo 
+LSN 70216 [CONSIDER_REDO] Transaction id 266 redo 
+LSN 70504 [CONSIDER_REDO] Transaction id 282 redo 
+LSN 70792 [CONSIDER_REDO] Transaction id 298 redo 
+LSN 71080 [CONSIDER_REDO] Transaction id 346 redo 
+LSN 71368 [CONSIDER_REDO] Transaction id 362 redo 
+LSN 71656 [CONSIDER_REDO] Transaction id 389 redo 
+LSN 71944 [CONSIDER_REDO] Transaction id 83 redo 
+LSN 72232 [CONSIDER_REDO] Transaction id 149 redo 
+LSN 72520 [CONSIDER_REDO] Transaction id 226 redo 
+LSN 72808 [CONSIDER_REDO] Transaction id 258 redo 
+LSN 73096 [CONSIDER_REDO] Transaction id 290 redo 
+LSN 73384 [CONSIDER_REDO] Transaction id 322 redo 
+LSN 73672 [CONSIDER_REDO] Transaction id 398 redo 
+LSN 73960 [CONSIDER_REDO] Transaction id 210 redo 
+LSN 74248 [CONSIDER_REDO] Transaction id 274 redo 
+LSN 74536 [CONSIDER_REDO] Transaction id 177 redo 
+LSN 74824 [CONSIDER_REDO] Transaction id 99 redo 
+LSN 75112 [CONSIDER_REDO] Transaction id 370 redo 
+LSN 75400 [CONSIDER_REDO] Transaction id 242 redo 
+LSN 75688 [CONSIDER_REDO] Transaction id 412 redo 
+LSN 75976 [CONSIDER_REDO] Transaction id 413 redo 
+LSN 76264 [CONSIDER_REDO] Transaction id 418 redo 
+LSN 76552 [CONSIDER_REDO] Transaction id 422 redo 
+LSN 76840 [CONSIDER_REDO] Transaction id 424 redo 
+LSN 77128 [CONSIDER_REDO] Transaction id 426 redo 
+LSN 77416 [CONSIDER_REDO] Transaction id 417 redo 
+LSN 77704 [CONSIDER_REDO] Transaction id 427 redo 
+LSN 77992 [CONSIDER_REDO] Transaction id 429 redo 
+LSN 78280 [CONSIDER_REDO] Transaction id 430 redo 
+LSN 78568 [CONSIDER_REDO] Transaction id 431 redo 
+LSN 78856 [CONSIDER_REDO] Transaction id 437 redo 
+LSN 79144 [CONSIDER_REDO] Transaction id 439 redo 
+LSN 79432 [CONSIDER_REDO] Transaction id 436 redo 
+LSN 79720 [CONSIDER_REDO] Transaction id 440 redo 
+LSN 80008 [CONSIDER_REDO] Transaction id 443 redo 
+LSN 80296 [CONSIDER_REDO] Transaction id 446 redo 
+LSN 80584 [CONSIDER_REDO] Transaction id 449 redo 
+LSN 80872 [CONSIDER_REDO] Transaction id 448 redo 
+LSN 81160 [CONSIDER_REDO] Transaction id 452 redo 
+LSN 81448 [CONSIDER_REDO] Transaction id 454 redo 
+LSN 81736 [CONSIDER_REDO] Transaction id 456 redo 
+LSN 82024 [CONSIDER_REDO] Transaction id 458 redo 
+LSN 82312 [CONSIDER_REDO] Transaction id 460 redo 
+LSN 82600 [CONSIDER_REDO] Transaction id 462 redo 
+LSN 82888 [CONSIDER_REDO] Transaction id 464 redo 
+LSN 83176 [CONSIDER_REDO] Transaction id 466 redo 
+LSN 83464 [CONSIDER_REDO] Transaction id 467 redo 
+LSN 83752 [CONSIDER_REDO] Transaction id 470 redo 
+LSN 84040 [CONSIDER_REDO] Transaction id 472 redo 
+LSN 84328 [CONSIDER_REDO] Transaction id 473 redo 
+LSN 84616 [CONSIDER_REDO] Transaction id 474 redo 
+LSN 84904 [CONSIDER_REDO] Transaction id 479 redo 
+LSN 85192 [CONSIDER_REDO] Transaction id 482 redo 
+LSN 85480 [CONSIDER_REDO] Transaction id 485 redo 
+LSN 85768 [CONSIDER_REDO] Transaction id 483 redo 
+LSN 86056 [CONSIDER_REDO] Transaction id 487 redo 
+LSN 86344 [CONSIDER_REDO] Transaction id 488 redo 
+LSN 86632 [CONSIDER_REDO] Transaction id 489 redo 
+LSN 86920 [CONSIDER_REDO] Transaction id 495 redo 
+LSN 87208 [CONSIDER_REDO] Transaction id 494 redo 
+LSN 87496 [CONSIDER_REDO] Transaction id 492 redo 
+LSN 87784 [CONSIDER_REDO] Transaction id 498 redo 
+LSN 88072 [CONSIDER_REDO] Transaction id 500 redo 
+LSN 88360 [CONSIDER_REDO] Transaction id 506 redo 
+LSN 88648 [CONSIDER_REDO] Transaction id 508 redo 
+LSN 88936 [CONSIDER_REDO] Transaction id 510 redo 
+LSN 89224 [CONSIDER_REDO] Transaction id 512 redo 
+LSN 89512 [CONSIDER_REDO] Transaction id 514 redo 
+LSN 89800 [CONSIDER_REDO] Transaction id 505 redo 
+LSN 90088 [CONSIDER_REDO] Transaction id 521 redo 
+LSN 90376 [CONSIDER_REDO] Transaction id 511 redo 
+LSN 90664 [CONSIDER_REDO] Transaction id 519 redo 
+LSN 90952 [CONSIDER_REDO] Transaction id 515 redo 
+LSN 91240 [CONSIDER_REDO] Transaction id 507 redo 
+LSN 91528 [CONSIDER_REDO] Transaction id 524 redo 
+LSN 91816 [CONSIDER_REDO] Transaction id 526 redo 
+LSN 92104 [CONSIDER_REDO] Transaction id 528 redo 
+LSN 92392 [CONSIDER_REDO] Transaction id 530 redo 
+LSN 92680 [CONSIDER_REDO] Transaction id 532 redo 
+LSN 92968 [CONSIDER_REDO] Transaction id 534 redo 
+LSN 93256 [CONSIDER_REDO] Transaction id 536 redo 
+LSN 93544 [CONSIDER_REDO] Transaction id 538 redo 
+LSN 93832 [CONSIDER_REDO] Transaction id 542 redo 
+LSN 94120 [CONSIDER_REDO] Transaction id 541 redo 
+LSN 94408 [CONSIDER_REDO] Transaction id 539 redo 
+LSN 94696 [CONSIDER_REDO] Transaction id 547 redo 
+LSN 94984 [CONSIDER_REDO] Transaction id 548 redo 
+LSN 95272 [CONSIDER_REDO] Transaction id 549 redo 
+LSN 95560 [CONSIDER_REDO] Transaction id 555 redo 
+LSN 95848 [CONSIDER_REDO] Transaction id 557 redo 
+LSN 96136 [CONSIDER_REDO] Transaction id 559 redo 
+LSN 96424 [CONSIDER_REDO] Transaction id 566 redo 
+LSN 96712 [CONSIDER_REDO] Transaction id 568 redo 
+LSN 96740 [COMMIT] Transaction id 4
+LSN 96768 [COMMIT] Transaction id 2
+LSN 96796 [COMMIT] Transaction id 6
+LSN 96824 [COMMIT] Transaction id 7
+LSN 96852 [COMMIT] Transaction id 8
+LSN 96880 [COMMIT] Transaction id 9
+LSN 96908 [COMMIT] Transaction id 11
+LSN 96936 [COMMIT] Transaction id 13
+LSN 96964 [COMMIT] Transaction id 15
+LSN 96992 [COMMIT] Transaction id 25
+LSN 97280 [CONSIDER_REDO] Transaction id 550 redo 
+LSN 97308 [COMMIT] Transaction id 19
+LSN 97336 [COMMIT] Transaction id 21
+LSN 97364 [COMMIT] Transaction id 17
+LSN 97392 [COMMIT] Transaction id 23
+LSN 97420 [COMMIT] Transaction id 16
+LSN 97448 [COMMIT] Transaction id 12
+LSN 97476 [BEGIN] Transaction id 572
+LSN 97504 [BEGIN] Transaction id 573
+LSN 97532 [BEGIN] Transaction id 574
+LSN 97560 [BEGIN] Transaction id 575
+LSN 97588 [BEGIN] Transaction id 576
+LSN 97616 [BEGIN] Transaction id 577
+LSN 97644 [BEGIN] Transaction id 578
+LSN 97672 [BEGIN] Transaction id 579
+LSN 97700 [BEGIN] Transaction id 580
+LSN 97728 [BEGIN] Transaction id 581
+LSN 97756 [BEGIN] Transaction id 582
+LSN 97784 [BEGIN] Transaction id 583
+LSN 97812 [BEGIN] Transaction id 584
+LSN 97840 [BEGIN] Transaction id 585
+LSN 97868 [BEGIN] Transaction id 586
+LSN 97896 [BEGIN] Transaction id 587
+LSN 97924 [BEGIN] Transaction id 588
+LSN 97952 [BEGIN] Transaction id 589
+LSN 97980 [BEGIN] Transaction id 590
+LSN 98008 [BEGIN] Transaction id 591
+LSN 98036 [BEGIN] Transaction id 592
+LSN 98064 [BEGIN] Transaction id 593
+LSN 98092 [BEGIN] Transaction id 594
+LSN 98120 [BEGIN] Transaction id 595
+LSN 98148 [BEGIN] Transaction id 596
+LSN 98176 [BEGIN] Transaction id 597
+LSN 98204 [BEGIN] Transaction id 598
+LSN 98232 [BEGIN] Transaction id 599
+LSN 98260 [BEGIN] Transaction id 600
+LSN 98288 [BEGIN] Transaction id 601
+LSN 98316 [BEGIN] Transaction id 602
+LSN 98344 [BEGIN] Transaction id 603
+LSN 98372 [BEGIN] Transaction id 604
+LSN 98400 [BEGIN] Transaction id 605
+LSN 98428 [BEGIN] Transaction id 606
+LSN 98456 [BEGIN] Transaction id 607
+LSN 98484 [BEGIN] Transaction id 608
+LSN 98512 [BEGIN] Transaction id 609
+LSN 98540 [BEGIN] Transaction id 610
+LSN 98568 [BEGIN] Transaction id 611
+LSN 98596 [BEGIN] Transaction id 612
+LSN 98624 [BEGIN] Transaction id 613
+LSN 98652 [BEGIN] Transaction id 614
+LSN 98680 [BEGIN] Transaction id 615
+LSN 98708 [BEGIN] Transaction id 616
+LSN 98736 [BEGIN] Transaction id 617
+LSN 98764 [BEGIN] Transaction id 618
+LSN 98792 [BEGIN] Transaction id 619
+LSN 98820 [BEGIN] Transaction id 620
+LSN 98848 [BEGIN] Transaction id 621
+LSN 98876 [BEGIN] Transaction id 622
+LSN 98904 [BEGIN] Transaction id 623
+LSN 98932 [BEGIN] Transaction id 624
+LSN 98960 [BEGIN] Transaction id 625
+LSN 98988 [BEGIN] Transaction id 626
+LSN 99016 [BEGIN] Transaction id 627
+LSN 99044 [BEGIN] Transaction id 628
+LSN 99072 [BEGIN] Transaction id 629
+LSN 99100 [BEGIN] Transaction id 630
+LSN 99128 [BEGIN] Transaction id 631
+LSN 99156 [BEGIN] Transaction id 632
+LSN 99184 [BEGIN] Transaction id 633
+LSN 99212 [BEGIN] Transaction id 634
+LSN 99240 [BEGIN] Transaction id 635
+LSN 99268 [BEGIN] Transaction id 636
+LSN 99296 [BEGIN] Transaction id 637
+LSN 99324 [BEGIN] Transaction id 638
+LSN 99352 [BEGIN] Transaction id 639
+LSN 99380 [BEGIN] Transaction id 640
+LSN 99408 [BEGIN] Transaction id 641
+LSN 99436 [BEGIN] Transaction id 642
+LSN 99464 [BEGIN] Transaction id 643
+LSN 99492 [BEGIN] Transaction id 644
+LSN 99520 [BEGIN] Transaction id 645
+LSN 99548 [BEGIN] Transaction id 646
+LSN 99576 [BEGIN] Transaction id 647
+LSN 99604 [BEGIN] Transaction id 648
+LSN 99632 [BEGIN] Transaction id 649
+LSN 99660 [BEGIN] Transaction id 650
+LSN 99688 [BEGIN] Transaction id 651
+LSN 99716 [BEGIN] Transaction id 652
+LSN 99744 [BEGIN] Transaction id 653
+LSN 99772 [BEGIN] Transaction id 654
+LSN 99800 [BEGIN] Transaction id 655
+LSN 99828 [BEGIN] Transaction id 656
+LSN 99856 [BEGIN] Transaction id 657
+LSN 99884 [BEGIN] Transaction id 658
+LSN 99912 [BEGIN] Transaction id 659
+LSN 99940 [BEGIN] Transaction id 660
+LSN 99968 [BEGIN] Transaction id 661
+LSN 99996 [BEGIN] Transaction id 662
+LSN 100024 [BEGIN] Transaction id 663
+LSN 100052 [BEGIN] Transaction id 664
+LSN 100080 [BEGIN] Transaction id 665
+LSN 100108 [BEGIN] Transaction id 666
+LSN 100136 [BEGIN] Transaction id 667
+LSN 100164 [BEGIN] Transaction id 668
+LSN 100192 [BEGIN] Transaction id 669
+LSN 100220 [BEGIN] Transaction id 670
+LSN 100248 [BEGIN] Transaction id 671
+LSN 100276 [BEGIN] Transaction id 672
+LSN 100304 [BEGIN] Transaction id 673
+LSN 100332 [BEGIN] Transaction id 674
+LSN 100360 [BEGIN] Transaction id 675
+LSN 100388 [BEGIN] Transaction id 676
+LSN 100416 [BEGIN] Transaction id 677
+LSN 100444 [BEGIN] Transaction id 678
+LSN 100472 [BEGIN] Transaction id 679
+LSN 100500 [BEGIN] Transaction id 680
+LSN 100528 [BEGIN] Transaction id 681
+LSN 100556 [BEGIN] Transaction id 682
+LSN 100584 [BEGIN] Transaction id 683
+LSN 100612 [BEGIN] Transaction id 684
+LSN 100640 [BEGIN] Transaction id 685
+LSN 100668 [BEGIN] Transaction id 686
+LSN 100696 [BEGIN] Transaction id 687
+LSN 100724 [BEGIN] Transaction id 688
+LSN 100752 [BEGIN] Transaction id 689
+LSN 100780 [BEGIN] Transaction id 690
+LSN 100808 [BEGIN] Transaction id 691
+LSN 100836 [BEGIN] Transaction id 692
+LSN 100864 [BEGIN] Transaction id 693
+LSN 100892 [BEGIN] Transaction id 694
+LSN 100920 [BEGIN] Transaction id 695
+LSN 100948 [BEGIN] Transaction id 696
+LSN 100976 [BEGIN] Transaction id 697
+LSN 101004 [BEGIN] Transaction id 698
+LSN 101032 [BEGIN] Transaction id 699
+LSN 101060 [BEGIN] Transaction id 700
+LSN 101088 [BEGIN] Transaction id 701
+LSN 101116 [BEGIN] Transaction id 702
+LSN 101144 [BEGIN] Transaction id 703
+LSN 101172 [BEGIN] Transaction id 704
+LSN 101200 [BEGIN] Transaction id 705
+LSN 101228 [BEGIN] Transaction id 706
+LSN 101256 [BEGIN] Transaction id 707
+LSN 101284 [BEGIN] Transaction id 708
+LSN 101312 [BEGIN] Transaction id 709
+LSN 101340 [BEGIN] Transaction id 710
+LSN 101368 [BEGIN] Transaction id 711
+LSN 101396 [BEGIN] Transaction id 712
+LSN 101424 [BEGIN] Transaction id 713
+LSN 101452 [BEGIN] Transaction id 714
+LSN 101480 [BEGIN] Transaction id 715
+LSN 101508 [BEGIN] Transaction id 716
+LSN 101536 [BEGIN] Transaction id 717
+LSN 101564 [BEGIN] Transaction id 718
+LSN 101592 [BEGIN] Transaction id 719
+LSN 101620 [BEGIN] Transaction id 720
+LSN 101648 [BEGIN] Transaction id 721
+LSN 101676 [BEGIN] Transaction id 722
+LSN 101704 [BEGIN] Transaction id 723
+LSN 101732 [BEGIN] Transaction id 724
+LSN 101760 [BEGIN] Transaction id 725
+LSN 101788 [BEGIN] Transaction id 727
+LSN 101816 [BEGIN] Transaction id 728
+LSN 101844 [BEGIN] Transaction id 729
+LSN 101872 [BEGIN] Transaction id 726
+LSN 101900 [BEGIN] Transaction id 730
+LSN 101928 [BEGIN] Transaction id 731
+LSN 101956 [BEGIN] Transaction id 732
+LSN 101984 [BEGIN] Transaction id 733
+LSN 102012 [BEGIN] Transaction id 734
+LSN 102040 [BEGIN] Transaction id 735
+LSN 102068 [BEGIN] Transaction id 736
+LSN 102096 [BEGIN] Transaction id 737
+LSN 102124 [BEGIN] Transaction id 738
+LSN 102152 [BEGIN] Transaction id 739
+LSN 102180 [BEGIN] Transaction id 740
+LSN 102208 [BEGIN] Transaction id 741
+LSN 102236 [BEGIN] Transaction id 742
+LSN 102264 [BEGIN] Transaction id 743
+LSN 102292 [BEGIN] Transaction id 744
+LSN 102320 [BEGIN] Transaction id 745
+LSN 102348 [BEGIN] Transaction id 746
+LSN 102376 [BEGIN] Transaction id 747
+LSN 102404 [BEGIN] Transaction id 748
+LSN 102432 [BEGIN] Transaction id 749
+LSN 102460 [BEGIN] Transaction id 750
+LSN 102488 [BEGIN] Transaction id 751
+LSN 102516 [BEGIN] Transaction id 752
+LSN 102544 [BEGIN] Transaction id 753
+LSN 102572 [BEGIN] Transaction id 754
+LSN 102600 [BEGIN] Transaction id 755
+LSN 102628 [BEGIN] Transaction id 756
+LSN 102656 [BEGIN] Transaction id 757
+LSN 102684 [BEGIN] Transaction id 758
+LSN 102712 [BEGIN] Transaction id 759
+LSN 102740 [BEGIN] Transaction id 760
+LSN 102768 [BEGIN] Transaction id 761
+LSN 102796 [BEGIN] Transaction id 762
+LSN 102824 [BEGIN] Transaction id 763
+LSN 102852 [BEGIN] Transaction id 764
+LSN 102880 [BEGIN] Transaction id 765
+LSN 102908 [BEGIN] Transaction id 766
+LSN 102936 [BEGIN] Transaction id 767
+LSN 102964 [BEGIN] Transaction id 768
+LSN 102992 [BEGIN] Transaction id 769
+LSN 103020 [BEGIN] Transaction id 770
+LSN 103048 [BEGIN] Transaction id 771
+LSN 103076 [BEGIN] Transaction id 772
+LSN 103104 [BEGIN] Transaction id 773
+LSN 103132 [BEGIN] Transaction id 774
+LSN 103160 [BEGIN] Transaction id 775
+LSN 103188 [BEGIN] Transaction id 776
+LSN 103216 [BEGIN] Transaction id 777
+LSN 103244 [BEGIN] Transaction id 778
+LSN 103272 [BEGIN] Transaction id 779
+LSN 103300 [BEGIN] Transaction id 780
+LSN 103328 [BEGIN] Transaction id 781
+LSN 103356 [BEGIN] Transaction id 782
+LSN 103384 [BEGIN] Transaction id 783
+LSN 103412 [BEGIN] Transaction id 784
+LSN 103440 [BEGIN] Transaction id 785
+LSN 103468 [BEGIN] Transaction id 786
+LSN 103496 [BEGIN] Transaction id 787
+LSN 103524 [BEGIN] Transaction id 788
+LSN 103552 [BEGIN] Transaction id 789
+LSN 103580 [BEGIN] Transaction id 790
+LSN 103608 [BEGIN] Transaction id 791
+LSN 103636 [BEGIN] Transaction id 792
+LSN 103664 [BEGIN] Transaction id 793
+LSN 103692 [BEGIN] Transaction id 794
+LSN 103720 [BEGIN] Transaction id 795
+LSN 103748 [BEGIN] Transaction id 796
+LSN 103776 [BEGIN] Transaction id 797
+LSN 103804 [BEGIN] Transaction id 798
+LSN 103832 [BEGIN] Transaction id 799
+LSN 103860 [BEGIN] Transaction id 800
+LSN 103888 [BEGIN] Transaction id 801
+LSN 103916 [BEGIN] Transaction id 802
+LSN 103944 [BEGIN] Transaction id 803
+LSN 103972 [BEGIN] Transaction id 804
+LSN 104000 [BEGIN] Transaction id 805
+LSN 104028 [BEGIN] Transaction id 806
+LSN 104056 [BEGIN] Transaction id 807
+LSN 104084 [BEGIN] Transaction id 808
+LSN 104112 [BEGIN] Transaction id 809
+LSN 104140 [BEGIN] Transaction id 810
+LSN 104168 [BEGIN] Transaction id 811
+LSN 104196 [BEGIN] Transaction id 812
+LSN 104224 [BEGIN] Transaction id 813
+LSN 104252 [BEGIN] Transaction id 814
+LSN 104280 [BEGIN] Transaction id 815
+LSN 104308 [BEGIN] Transaction id 816
+LSN 104336 [BEGIN] Transaction id 817
+LSN 104364 [BEGIN] Transaction id 818
+LSN 104392 [BEGIN] Transaction id 819
+LSN 104420 [BEGIN] Transaction id 820
+LSN 104448 [BEGIN] Transaction id 821
+LSN 104476 [BEGIN] Transaction id 822
+LSN 104504 [BEGIN] Transaction id 823
+LSN 104532 [BEGIN] Transaction id 824
+LSN 104560 [BEGIN] Transaction id 825
+LSN 104588 [BEGIN] Transaction id 826
+LSN 104616 [BEGIN] Transaction id 827
+LSN 104644 [BEGIN] Transaction id 828
+LSN 104672 [BEGIN] Transaction id 829
+LSN 104700 [BEGIN] Transaction id 830
+LSN 104728 [BEGIN] Transaction id 831
+LSN 104756 [BEGIN] Transaction id 832
+LSN 104784 [BEGIN] Transaction id 833
+LSN 104812 [BEGIN] Transaction id 834
+LSN 104840 [BEGIN] Transaction id 835
+LSN 104868 [BEGIN] Transaction id 836
+LSN 104896 [BEGIN] Transaction id 837
+LSN 104924 [BEGIN] Transaction id 838
+LSN 104952 [BEGIN] Transaction id 839
+LSN 104980 [BEGIN] Transaction id 840
+LSN 105008 [BEGIN] Transaction id 841
+LSN 105036 [BEGIN] Transaction id 842
+LSN 105064 [BEGIN] Transaction id 843
+LSN 105092 [BEGIN] Transaction id 844
+LSN 105120 [BEGIN] Transaction id 845
+LSN 105148 [BEGIN] Transaction id 846
+LSN 105176 [BEGIN] Transaction id 847
+LSN 105204 [BEGIN] Transaction id 848
+LSN 105232 [BEGIN] Transaction id 849
+LSN 105260 [BEGIN] Transaction id 850
+LSN 105288 [BEGIN] Transaction id 851
+LSN 105316 [BEGIN] Transaction id 852
+LSN 105344 [BEGIN] Transaction id 853
+LSN 105372 [BEGIN] Transaction id 854
+LSN 105400 [BEGIN] Transaction id 855
+LSN 105428 [BEGIN] Transaction id 856
+LSN 105456 [BEGIN] Transaction id 857
+LSN 105484 [BEGIN] Transaction id 858
+LSN 105512 [BEGIN] Transaction id 859
+LSN 105540 [BEGIN] Transaction id 860
+LSN 105568 [BEGIN] Transaction id 861
+LSN 105596 [BEGIN] Transaction id 862
+LSN 105624 [BEGIN] Transaction id 863
+LSN 105652 [BEGIN] Transaction id 864
+LSN 105680 [BEGIN] Transaction id 865
+LSN 105708 [BEGIN] Transaction id 866
+LSN 105736 [BEGIN] Transaction id 867
+LSN 105764 [BEGIN] Transaction id 868
+LSN 105792 [BEGIN] Transaction id 869
+LSN 105820 [BEGIN] Transaction id 870
+LSN 105848 [BEGIN] Transaction id 871
+LSN 105876 [BEGIN] Transaction id 872
+LSN 105904 [BEGIN] Transaction id 873
+LSN 105932 [BEGIN] Transaction id 874
+LSN 105960 [BEGIN] Transaction id 875
+LSN 105988 [BEGIN] Transaction id 876
+LSN 106016 [BEGIN] Transaction id 877
+LSN 106044 [BEGIN] Transaction id 878
+LSN 106072 [BEGIN] Transaction id 879
+LSN 106100 [BEGIN] Transaction id 880
+LSN 106128 [BEGIN] Transaction id 881
+LSN 106156 [BEGIN] Transaction id 882
+LSN 106184 [BEGIN] Transaction id 883
+LSN 106212 [BEGIN] Transaction id 884
+LSN 106240 [BEGIN] Transaction id 885
+LSN 106268 [BEGIN] Transaction id 886
+LSN 106296 [BEGIN] Transaction id 887
+LSN 106324 [BEGIN] Transaction id 888
+LSN 106352 [BEGIN] Transaction id 889
+LSN 106380 [BEGIN] Transaction id 890
+LSN 106408 [BEGIN] Transaction id 891
+LSN 106436 [BEGIN] Transaction id 892
+LSN 106464 [BEGIN] Transaction id 893
+LSN 106492 [BEGIN] Transaction id 894
+LSN 106520 [BEGIN] Transaction id 895
+LSN 106548 [BEGIN] Transaction id 896
+LSN 106576 [BEGIN] Transaction id 897
+LSN 106604 [BEGIN] Transaction id 898
+LSN 106632 [BEGIN] Transaction id 899
+LSN 106660 [BEGIN] Transaction id 900
+LSN 106688 [BEGIN] Transaction id 901
+LSN 106716 [BEGIN] Transaction id 902
+LSN 106744 [BEGIN] Transaction id 903
+LSN 106772 [BEGIN] Transaction id 904
+LSN 106800 [BEGIN] Transaction id 905
+LSN 106828 [BEGIN] Transaction id 906
+LSN 106856 [BEGIN] Transaction id 907
+LSN 106884 [BEGIN] Transaction id 908
+LSN 106912 [BEGIN] Transaction id 909
+LSN 106940 [BEGIN] Transaction id 910
+LSN 106968 [BEGIN] Transaction id 911
+LSN 106996 [BEGIN] Transaction id 912
+LSN 107024 [BEGIN] Transaction id 913
+LSN 107052 [BEGIN] Transaction id 914
+LSN 107080 [BEGIN] Transaction id 915
+LSN 107108 [BEGIN] Transaction id 916
+LSN 107136 [BEGIN] Transaction id 917
+LSN 107164 [BEGIN] Transaction id 918
+LSN 107192 [BEGIN] Transaction id 919
+LSN 107220 [BEGIN] Transaction id 920
+LSN 107248 [BEGIN] Transaction id 921
+LSN 107276 [BEGIN] Transaction id 922
+LSN 107304 [BEGIN] Transaction id 923
+LSN 107332 [BEGIN] Transaction id 924
+LSN 107360 [BEGIN] Transaction id 925
+LSN 107388 [BEGIN] Transaction id 926
+LSN 107416 [BEGIN] Transaction id 927
+LSN 107444 [BEGIN] Transaction id 928
+LSN 107472 [BEGIN] Transaction id 929
+LSN 107500 [BEGIN] Transaction id 930
+LSN 107528 [BEGIN] Transaction id 931
+LSN 107556 [BEGIN] Transaction id 932
+LSN 107584 [BEGIN] Transaction id 933
+LSN 107612 [BEGIN] Transaction id 934
+LSN 107640 [BEGIN] Transaction id 935
+LSN 107668 [BEGIN] Transaction id 936
+LSN 107696 [BEGIN] Transaction id 937
+LSN 107724 [BEGIN] Transaction id 938
+LSN 107752 [BEGIN] Transaction id 939
+LSN 107780 [BEGIN] Transaction id 940
+LSN 107808 [BEGIN] Transaction id 941
+LSN 107836 [BEGIN] Transaction id 942
+LSN 107864 [BEGIN] Transaction id 943
+LSN 107892 [BEGIN] Transaction id 944
+LSN 107920 [BEGIN] Transaction id 945
+LSN 107948 [BEGIN] Transaction id 946
+LSN 107976 [BEGIN] Transaction id 947
+LSN 108004 [BEGIN] Transaction id 948
+LSN 108032 [BEGIN] Transaction id 949
+LSN 108060 [BEGIN] Transaction id 950
+LSN 108088 [BEGIN] Transaction id 951
+LSN 108116 [BEGIN] Transaction id 952
+LSN 108144 [BEGIN] Transaction id 953
+LSN 108172 [BEGIN] Transaction id 954
+LSN 108200 [BEGIN] Transaction id 955
+LSN 108228 [BEGIN] Transaction id 956
+LSN 108256 [BEGIN] Transaction id 957
+LSN 108284 [BEGIN] Transaction id 958
+LSN 108312 [BEGIN] Transaction id 959
+LSN 108340 [BEGIN] Transaction id 960
+LSN 108368 [BEGIN] Transaction id 961
+LSN 108396 [BEGIN] Transaction id 962
+LSN 108424 [BEGIN] Transaction id 963
+LSN 108452 [BEGIN] Transaction id 964
+LSN 108480 [BEGIN] Transaction id 965
+LSN 108508 [BEGIN] Transaction id 966
+LSN 108536 [BEGIN] Transaction id 967
+LSN 108564 [BEGIN] Transaction id 968
+LSN 108592 [BEGIN] Transaction id 969
+LSN 108620 [BEGIN] Transaction id 970
+LSN 108648 [BEGIN] Transaction id 971
+LSN 108676 [BEGIN] Transaction id 972
+LSN 108704 [BEGIN] Transaction id 973
+LSN 108732 [BEGIN] Transaction id 974
+LSN 108760 [BEGIN] Transaction id 975
+LSN 108788 [BEGIN] Transaction id 976
+LSN 108816 [BEGIN] Transaction id 977
+LSN 108844 [BEGIN] Transaction id 978
+LSN 108872 [BEGIN] Transaction id 979
+LSN 108900 [BEGIN] Transaction id 980
+LSN 108928 [BEGIN] Transaction id 981
+LSN 108956 [BEGIN] Transaction id 982
+LSN 108984 [BEGIN] Transaction id 983
+LSN 109012 [BEGIN] Transaction id 984
+LSN 109040 [BEGIN] Transaction id 985
+LSN 109068 [BEGIN] Transaction id 986
+LSN 109096 [BEGIN] Transaction id 987
+LSN 109124 [BEGIN] Transaction id 988
+LSN 109152 [BEGIN] Transaction id 989
+LSN 109180 [BEGIN] Transaction id 990
+LSN 109208 [BEGIN] Transaction id 991
+LSN 109236 [BEGIN] Transaction id 992
+LSN 109264 [BEGIN] Transaction id 993
+LSN 109292 [BEGIN] Transaction id 994
+LSN 109320 [BEGIN] Transaction id 995
+LSN 109348 [BEGIN] Transaction id 996
+LSN 109376 [BEGIN] Transaction id 997
+LSN 109404 [BEGIN] Transaction id 998
+LSN 109432 [BEGIN] Transaction id 999
+LSN 109460 [BEGIN] Transaction id 1000
+LSN 109748 [CONSIDER_REDO] Transaction id 556 redo 
+LSN 110036 [CONSIDER_REDO] Transaction id 563 redo 
+LSN 110324 [CONSIDER_REDO] Transaction id 560 redo 
+LSN 110612 [CONSIDER_REDO] Transaction id 569 redo 
+LSN 110900 [CONSIDER_REDO] Transaction id 726 redo 
+LSN 111188 [CONSIDER_REDO] Transaction id 572 redo 
+LSN 111476 [CONSIDER_REDO] Transaction id 573 redo 
+LSN 111764 [CONSIDER_REDO] Transaction id 576 redo 
+LSN 112052 [CONSIDER_REDO] Transaction id 579 redo 
+LSN 112340 [CONSIDER_REDO] Transaction id 580 redo 
+LSN 112628 [CONSIDER_REDO] Transaction id 582 redo 
+LSN 112916 [CONSIDER_REDO] Transaction id 585 redo 
+LSN 113204 [CONSIDER_REDO] Transaction id 586 redo 
+LSN 113492 [CONSIDER_REDO] Transaction id 587 redo 
+LSN 113780 [CONSIDER_REDO] Transaction id 589 redo 
+LSN 114068 [CONSIDER_REDO] Transaction id 592 redo 
+LSN 114356 [CONSIDER_REDO] Transaction id 593 redo 
+LSN 114644 [CONSIDER_REDO] Transaction id 594 redo 
+LSN 114932 [CONSIDER_REDO] Transaction id 598 redo 
+LSN 115220 [CONSIDER_REDO] Transaction id 599 redo 
+LSN 115508 [CONSIDER_REDO] Transaction id 600 redo 
+LSN 115796 [CONSIDER_REDO] Transaction id 601 redo 
+LSN 116084 [CONSIDER_REDO] Transaction id 604 redo 
+LSN 116372 [CONSIDER_REDO] Transaction id 607 redo 
+LSN 116660 [CONSIDER_REDO] Transaction id 610 redo 
+LSN 116948 [CONSIDER_REDO] Transaction id 611 redo 
+LSN 117236 [CONSIDER_REDO] Transaction id 613 redo 
+LSN 117524 [CONSIDER_REDO] Transaction id 620 redo 
+LSN 117812 [CONSIDER_REDO] Transaction id 623 redo 
+LSN 118100 [CONSIDER_REDO] Transaction id 624 redo 
+LSN 118388 [CONSIDER_REDO] Transaction id 625 redo 
+LSN 118676 [CONSIDER_REDO] Transaction id 627 redo 
+LSN 118964 [CONSIDER_REDO] Transaction id 628 redo 
+LSN 119252 [CONSIDER_REDO] Transaction id 629 redo 
+LSN 119540 [CONSIDER_REDO] Transaction id 632 redo 
+LSN 119828 [CONSIDER_REDO] Transaction id 634 redo 
+LSN 120116 [CONSIDER_REDO] Transaction id 640 redo 
+LSN 120404 [CONSIDER_REDO] Transaction id 641 redo 
+LSN 120692 [CONSIDER_REDO] Transaction id 642 redo 
+LSN 120980 [CONSIDER_REDO] Transaction id 643 redo 
+LSN 121268 [CONSIDER_REDO] Transaction id 645 redo 
+LSN 121556 [CONSIDER_REDO] Transaction id 646 redo 
+LSN 121844 [CONSIDER_REDO] Transaction id 648 redo 
+LSN 122132 [CONSIDER_REDO] Transaction id 649 redo 
+LSN 122420 [CONSIDER_REDO] Transaction id 653 redo 
+LSN 122708 [CONSIDER_REDO] Transaction id 655 redo 
+LSN 122996 [CONSIDER_REDO] Transaction id 657 redo 
+LSN 123284 [CONSIDER_REDO] Transaction id 659 redo 
+LSN 123572 [CONSIDER_REDO] Transaction id 660 redo 
+LSN 123860 [CONSIDER_REDO] Transaction id 662 redo 
+LSN 124148 [CONSIDER_REDO] Transaction id 664 redo 
+LSN 124436 [CONSIDER_REDO] Transaction id 666 redo 
+LSN 124724 [CONSIDER_REDO] Transaction id 668 redo 
+LSN 125012 [CONSIDER_REDO] Transaction id 669 redo 
+LSN 125300 [CONSIDER_REDO] Transaction id 670 redo 
+LSN 125588 [CONSIDER_REDO] Transaction id 675 redo 
+LSN 125876 [CONSIDER_REDO] Transaction id 678 redo 
+LSN 126164 [CONSIDER_REDO] Transaction id 681 redo 
+LSN 126452 [CONSIDER_REDO] Transaction id 682 redo 
+LSN 126740 [CONSIDER_REDO] Transaction id 683 redo 
+LSN 127028 [CONSIDER_REDO] Transaction id 685 redo 
+LSN 127316 [CONSIDER_REDO] Transaction id 687 redo 
+LSN 127604 [CONSIDER_REDO] Transaction id 688 redo 
+LSN 127892 [CONSIDER_REDO] Transaction id 690 redo 
+LSN 128180 [CONSIDER_REDO] Transaction id 692 redo 
+LSN 128468 [CONSIDER_REDO] Transaction id 694 redo 
+LSN 128756 [CONSIDER_REDO] Transaction id 696 redo 
+LSN 129044 [CONSIDER_REDO] Transaction id 698 redo 
+LSN 129332 [CONSIDER_REDO] Transaction id 700 redo 
+LSN 129620 [CONSIDER_REDO] Transaction id 702 redo 
+LSN 129908 [CONSIDER_REDO] Transaction id 704 redo 
+LSN 130196 [CONSIDER_REDO] Transaction id 707 redo 
+LSN 130484 [CONSIDER_REDO] Transaction id 708 redo 
+LSN 130772 [CONSIDER_REDO] Transaction id 710 redo 
+LSN 131060 [CONSIDER_REDO] Transaction id 711 redo 
+LSN 131348 [CONSIDER_REDO] Transaction id 713 redo 
+LSN 131636 [CONSIDER_REDO] Transaction id 716 redo 
+LSN 131924 [CONSIDER_REDO] Transaction id 718 redo 
+LSN 132212 [CONSIDER_REDO] Transaction id 720 redo 
+LSN 132500 [CONSIDER_REDO] Transaction id 722 redo 
+LSN 132788 [CONSIDER_REDO] Transaction id 724 redo 
+LSN 133076 [CONSIDER_REDO] Transaction id 941 redo 
+LSN 133364 [CONSIDER_REDO] Transaction id 949 redo 
+LSN 133652 [CONSIDER_REDO] Transaction id 953 redo 
+LSN 133940 [CONSIDER_REDO] Transaction id 958 redo 
+LSN 134228 [CONSIDER_REDO] Transaction id 960 redo 
+LSN 134516 [CONSIDER_REDO] Transaction id 962 redo 
+LSN 134804 [CONSIDER_REDO] Transaction id 964 redo 
+LSN 135092 [CONSIDER_REDO] Transaction id 966 redo 
+LSN 135380 [CONSIDER_REDO] Transaction id 972 redo 
+LSN 135668 [CONSIDER_REDO] Transaction id 974 redo 
+LSN 135956 [CONSIDER_REDO] Transaction id 976 redo 
+LSN 136244 [CONSIDER_REDO] Transaction id 978 redo 
+LSN 136532 [CONSIDER_REDO] Transaction id 986 redo 
+LSN 136820 [CONSIDER_REDO] Transaction id 988 redo 
+LSN 137108 [CONSIDER_REDO] Transaction id 990 redo 
+LSN 137396 [CONSIDER_REDO] Transaction id 991 redo 
+LSN 137684 [CONSIDER_REDO] Transaction id 997 redo 
+LSN 137712 [COMMIT] Transaction id 20
+LSN 137740 [COMMIT] Transaction id 24
+LSN 137768 [COMMIT] Transaction id 14
+LSN 137796 [COMMIT] Transaction id 22
+LSN 137824 [COMMIT] Transaction id 18
+LSN 137852 [COMMIT] Transaction id 10
+LSN 137880 [COMMIT] Transaction id 26
+LSN 137908 [COMMIT] Transaction id 27
+LSN 137936 [COMMIT] Transaction id 29
+LSN 137964 [COMMIT] Transaction id 31
+LSN 137992 [COMMIT] Transaction id 33
+LSN 138020 [COMMIT] Transaction id 35
+LSN 138048 [COMMIT] Transaction id 37
+LSN 138076 [COMMIT] Transaction id 39
+LSN 138104 [COMMIT] Transaction id 41
+LSN 138132 [COMMIT] Transaction id 42
+LSN 138420 [CONSIDER_REDO] Transaction id 740 redo 
+LSN 138448 [COMMIT] Transaction id 44
+LSN 138476 [COMMIT] Transaction id 46
+LSN 138764 [CONSIDER_REDO] Transaction id 744 redo 
+LSN 139052 [CONSIDER_REDO] Transaction id 619 redo 
+LSN 139340 [CONSIDER_REDO] Transaction id 737 redo 
+LSN 139628 [CONSIDER_REDO] Transaction id 739 redo 
+LSN 139916 [CONSIDER_REDO] Transaction id 745 redo 
+LSN 140204 [CONSIDER_REDO] Transaction id 749 redo 
+LSN 140492 [CONSIDER_REDO] Transaction id 751 redo 
+LSN 140780 [CONSIDER_REDO] Transaction id 759 redo 
+LSN 141068 [CONSIDER_REDO] Transaction id 761 redo 
+LSN 141356 [CONSIDER_REDO] Transaction id 763 redo 
+LSN 141644 [CONSIDER_REDO] Transaction id 765 redo 
+LSN 141932 [CONSIDER_REDO] Transaction id 767 redo 
+LSN 142220 [CONSIDER_REDO] Transaction id 769 redo 
+LSN 142508 [CONSIDER_REDO] Transaction id 775 redo 
+LSN 142796 [CONSIDER_REDO] Transaction id 777 redo 
+LSN 143084 [CONSIDER_REDO] Transaction id 779 redo 
+LSN 143372 [CONSIDER_REDO] Transaction id 781 redo 
+LSN 143660 [CONSIDER_REDO] Transaction id 785 redo 
+LSN 143948 [CONSIDER_REDO] Transaction id 787 redo 
+LSN 144236 [CONSIDER_REDO] Transaction id 797 redo 
+LSN 144524 [CONSIDER_REDO] Transaction id 799 redo 
+LSN 144812 [CONSIDER_REDO] Transaction id 801 redo 
+LSN 145100 [CONSIDER_REDO] Transaction id 803 redo 
+LSN 145388 [CONSIDER_REDO] Transaction id 805 redo 
+LSN 145676 [CONSIDER_REDO] Transaction id 809 redo 
+LSN 145964 [CONSIDER_REDO] Transaction id 813 redo 
+LSN 146252 [CONSIDER_REDO] Transaction id 815 redo 
+LSN 146540 [CONSIDER_REDO] Transaction id 823 redo 
+LSN 146828 [CONSIDER_REDO] Transaction id 831 redo 
+LSN 147116 [CONSIDER_REDO] Transaction id 833 redo 
+LSN 147404 [CONSIDER_REDO] Transaction id 835 redo 
+LSN 147692 [CONSIDER_REDO] Transaction id 839 redo 
+LSN 147980 [CONSIDER_REDO] Transaction id 849 redo 
+LSN 148268 [CONSIDER_REDO] Transaction id 865 redo 
+LSN 148556 [CONSIDER_REDO] Transaction id 869 redo 
+LSN 148844 [CONSIDER_REDO] Transaction id 871 redo 
+LSN 149132 [CONSIDER_REDO] Transaction id 875 redo 
+LSN 149420 [CONSIDER_REDO] Transaction id 879 redo 
+LSN 149708 [CONSIDER_REDO] Transaction id 881 redo 
+LSN 149996 [CONSIDER_REDO] Transaction id 883 redo 
+LSN 150284 [CONSIDER_REDO] Transaction id 891 redo 
+LSN 150572 [CONSIDER_REDO] Transaction id 895 redo 
+LSN 150860 [CONSIDER_REDO] Transaction id 899 redo 
+LSN 151148 [CONSIDER_REDO] Transaction id 901 redo 
+LSN 151436 [CONSIDER_REDO] Transaction id 903 redo 
+LSN 151724 [CONSIDER_REDO] Transaction id 907 redo 
+LSN 152012 [CONSIDER_REDO] Transaction id 909 redo 
+LSN 152300 [CONSIDER_REDO] Transaction id 911 redo 
+LSN 152588 [CONSIDER_REDO] Transaction id 915 redo 
+LSN 152876 [CONSIDER_REDO] Transaction id 919 redo 
+LSN 153164 [CONSIDER_REDO] Transaction id 927 redo 
+LSN 153452 [CONSIDER_REDO] Transaction id 929 redo 
+LSN 153740 [CONSIDER_REDO] Transaction id 933 redo 
+LSN 154028 [CONSIDER_REDO] Transaction id 935 redo 
+LSN 154316 [CONSIDER_REDO] Transaction id 937 redo 
+LSN 154604 [CONSIDER_REDO] Transaction id 752 redo 
+LSN 154892 [CONSIDER_REDO] Transaction id 756 redo 
+LSN 155180 [CONSIDER_REDO] Transaction id 768 redo 
+LSN 155468 [CONSIDER_REDO] Transaction id 772 redo 
+LSN 155756 [CONSIDER_REDO] Transaction id 784 redo 
+LSN 156044 [CONSIDER_REDO] Transaction id 812 redo 
+LSN 156332 [CONSIDER_REDO] Transaction id 816 redo 
+LSN 156620 [CONSIDER_REDO] Transaction id 820 redo 
+LSN 156908 [CONSIDER_REDO] Transaction id 828 redo 
+LSN 157196 [CONSIDER_REDO] Transaction id 836 redo 
+LSN 157484 [CONSIDER_REDO] Transaction id 844 redo 
+LSN 157772 [CONSIDER_REDO] Transaction id 848 redo 
+LSN 158060 [CONSIDER_REDO] Transaction id 852 redo 
+LSN 158348 [CONSIDER_REDO] Transaction id 856 redo 
+LSN 158636 [CONSIDER_REDO] Transaction id 860 redo 
+LSN 158924 [CONSIDER_REDO] Transaction id 864 redo 
+LSN 159212 [CONSIDER_REDO] Transaction id 884 redo 
+LSN 159500 [CONSIDER_REDO] Transaction id 888 redo 
+LSN 159788 [CONSIDER_REDO] Transaction id 892 redo 
+LSN 160076 [CONSIDER_REDO] Transaction id 904 redo 
+LSN 160364 [CONSIDER_REDO] Transaction id 912 redo 
+LSN 160652 [CONSIDER_REDO] Transaction id 928 redo 
+LSN 160940 [CONSIDER_REDO] Transaction id 932 redo 
+LSN 161228 [CONSIDER_REDO] Transaction id 944 redo 
+LSN 161516 [CONSIDER_REDO] Transaction id 981 redo 
+LSN 161804 [CONSIDER_REDO] Transaction id 985 redo 
+LSN 162092 [CONSIDER_REDO] Transaction id 994 redo 
+LSN 162380 [CONSIDER_REDO] Transaction id 998 redo 
+LSN 162668 [CONSIDER_REDO] Transaction id 730 redo 
+LSN 162956 [CONSIDER_REDO] Transaction id 734 redo 
+LSN 163244 [CONSIDER_REDO] Transaction id 754 redo 
+LSN 163532 [CONSIDER_REDO] Transaction id 786 redo 
+LSN 163820 [CONSIDER_REDO] Transaction id 794 redo 
+LSN 164108 [CONSIDER_REDO] Transaction id 810 redo 
+LSN 164396 [CONSIDER_REDO] Transaction id 818 redo 
+LSN 164684 [CONSIDER_REDO] Transaction id 842 redo 
+LSN 164972 [CONSIDER_REDO] Transaction id 858 redo 
+LSN 165260 [CONSIDER_REDO] Transaction id 874 redo 
+LSN 165548 [CONSIDER_REDO] Transaction id 890 redo 
+LSN 165836 [CONSIDER_REDO] Transaction id 898 redo 
+LSN 166124 [CONSIDER_REDO] Transaction id 922 redo 
+LSN 166412 [CONSIDER_REDO] Transaction id 946 redo 
+LSN 166700 [CONSIDER_REDO] Transaction id 955 redo 
+LSN 166988 [CONSIDER_REDO] Transaction id 971 redo 
+LSN 167276 [CONSIDER_REDO] Transaction id 732 redo 
+LSN 167564 [CONSIDER_REDO] Transaction id 742 redo 
+LSN 167852 [CONSIDER_REDO] Transaction id 822 redo 
+LSN 168140 [CONSIDER_REDO] Transaction id 838 redo 
+LSN 168428 [CONSIDER_REDO] Transaction id 854 redo 
+LSN 168716 [CONSIDER_REDO] Transaction id 870 redo 
+LSN 169004 [CONSIDER_REDO] Transaction id 886 redo 
+LSN 169292 [CONSIDER_REDO] Transaction id 934 redo 
+LSN 169580 [CONSIDER_REDO] Transaction id 950 redo 
+LSN 169868 [CONSIDER_REDO] Transaction id 967 redo 
+LSN 170156 [CONSIDER_REDO] Transaction id 983 redo 
+LSN 170444 [CONSIDER_REDO] Transaction id 1000 redo 
+LSN 170732 [CONSIDER_REDO] Transaction id 782 redo 
+LSN 171020 [CONSIDER_REDO] Transaction id 846 redo 
+LSN 171308 [CONSIDER_REDO] Transaction id 910 redo 
+LSN 171596 [CONSIDER_REDO] Transaction id 942 redo 
+LSN 171884 [CONSIDER_REDO] Transaction id 830 redo 
+LSN 172172 [CONSIDER_REDO] Transaction id 959 redo 
+LSN 172460 [CONSIDER_REDO] Transaction id 798 redo 
+LSN 172748 [CONSIDER_REDO] Transaction id 862 redo 
+LSN 173036 [UPDATE] Transaction id 728 redo apply
+LSN 173064 [COMMIT] Transaction id 48
+LSN 173092 [COMMIT] Transaction id 50
+LSN 173120 [COMMIT] Transaction id 52
+LSN 173148 [COMMIT] Transaction id 54
+LSN 173176 [COMMIT] Transaction id 56
+LSN 173204 [COMMIT] Transaction id 58
+LSN 173232 [COMMIT] Transaction id 60
+LSN 173260 [COMMIT] Transaction id 62
+LSN 173288 [COMMIT] Transaction id 64
+LSN 173316 [COMMIT] Transaction id 66
+LSN 173344 [COMMIT] Transaction id 68
+LSN 173372 [COMMIT] Transaction id 70
+LSN 173400 [COMMIT] Transaction id 72
+LSN 173428 [COMMIT] Transaction id 74
+LSN 173456 [COMMIT] Transaction id 76
+LSN 173484 [COMMIT] Transaction id 78
+LSN 173512 [COMMIT] Transaction id 80
+LSN 173540 [COMMIT] Transaction id 82
+LSN 173568 [COMMIT] Transaction id 84
+LSN 173596 [COMMIT] Transaction id 86
+LSN 173624 [COMMIT] Transaction id 88
+LSN 173652 [COMMIT] Transaction id 90
+LSN 173680 [COMMIT] Transaction id 92
+LSN 173708 [COMMIT] Transaction id 96
+LSN 173736 [COMMIT] Transaction id 100
+LSN 173764 [COMMIT] Transaction id 98
+LSN 173792 [COMMIT] Transaction id 94
+LSN 173820 [COMMIT] Transaction id 102
+LSN 173848 [COMMIT] Transaction id 104
+LSN 173876 [COMMIT] Transaction id 106
+LSN 173904 [COMMIT] Transaction id 108
+LSN 173932 [COMMIT] Transaction id 112
+LSN 173960 [COMMIT] Transaction id 115
+LSN 173988 [COMMIT] Transaction id 113
+LSN 174016 [COMMIT] Transaction id 110
+LSN 174044 [COMMIT] Transaction id 116
+LSN 174072 [COMMIT] Transaction id 118
+LSN 174100 [COMMIT] Transaction id 120
+LSN 174128 [COMMIT] Transaction id 122
+LSN 174156 [COMMIT] Transaction id 124
+LSN 174184 [COMMIT] Transaction id 126
+LSN 174212 [COMMIT] Transaction id 128
+LSN 174240 [COMMIT] Transaction id 130
+LSN 174268 [COMMIT] Transaction id 132
+LSN 174296 [COMMIT] Transaction id 134
+LSN 174324 [COMMIT] Transaction id 136
+LSN 174352 [COMMIT] Transaction id 138
+LSN 174380 [COMMIT] Transaction id 140
+LSN 174408 [COMMIT] Transaction id 142
+LSN 174436 [COMMIT] Transaction id 144
+LSN 174464 [COMMIT] Transaction id 148
+LSN 174492 [COMMIT] Transaction id 152
+LSN 174520 [COMMIT] Transaction id 156
+LSN 174548 [COMMIT] Transaction id 160
+LSN 174576 [COMMIT] Transaction id 164
+LSN 174604 [COMMIT] Transaction id 168
+LSN 174632 [COMMIT] Transaction id 172
+LSN 174660 [COMMIT] Transaction id 176
+LSN 174688 [COMMIT] Transaction id 180
+LSN 174716 [COMMIT] Transaction id 184
+LSN 174744 [COMMIT] Transaction id 146
+LSN 174772 [COMMIT] Transaction id 154
+LSN 174800 [COMMIT] Transaction id 162
+LSN 174828 [COMMIT] Transaction id 170
+LSN 174856 [COMMIT] Transaction id 178
+LSN 174884 [COMMIT] Transaction id 186
+LSN 174912 [COMMIT] Transaction id 150
+LSN 174940 [COMMIT] Transaction id 166
+LSN 174968 [COMMIT] Transaction id 182
+LSN 174996 [COMMIT] Transaction id 174
+LSN 175024 [COMMIT] Transaction id 158
+LSN 175052 [COMMIT] Transaction id 188
+LSN 175080 [COMMIT] Transaction id 190
+LSN 175108 [COMMIT] Transaction id 192
+LSN 175136 [COMMIT] Transaction id 193
+LSN 175164 [COMMIT] Transaction id 195
+LSN 175192 [COMMIT] Transaction id 197
+LSN 175220 [COMMIT] Transaction id 199
+LSN 175248 [COMMIT] Transaction id 201
+LSN 175276 [COMMIT] Transaction id 203
+LSN 175304 [COMMIT] Transaction id 205
+LSN 175332 [COMMIT] Transaction id 209
+LSN 175360 [COMMIT] Transaction id 213
+LSN 175388 [COMMIT] Transaction id 217
+LSN 175416 [COMMIT] Transaction id 221
+LSN 175444 [COMMIT] Transaction id 225
+LSN 175472 [COMMIT] Transaction id 229
+LSN 175500 [COMMIT] Transaction id 233
+LSN 175528 [COMMIT] Transaction id 237
+LSN 175556 [COMMIT] Transaction id 241
+LSN 175584 [COMMIT] Transaction id 245
+LSN 175612 [COMMIT] Transaction id 249
+LSN 175640 [COMMIT] Transaction id 253
+LSN 175668 [COMMIT] Transaction id 257
+LSN 175696 [COMMIT] Transaction id 261
+LSN 175724 [COMMIT] Transaction id 265
+LSN 175752 [COMMIT] Transaction id 269
+LSN 175780 [COMMIT] Transaction id 273
+LSN 175808 [COMMIT] Transaction id 277
+LSN 175836 [COMMIT] Transaction id 281
+LSN 175864 [COMMIT] Transaction id 285
+LSN 175892 [COMMIT] Transaction id 289
+LSN 175920 [COMMIT] Transaction id 293
+LSN 175948 [COMMIT] Transaction id 297
+LSN 175976 [COMMIT] Transaction id 207
+LSN 176004 [COMMIT] Transaction id 215
+LSN 176032 [COMMIT] Transaction id 223
+LSN 176060 [COMMIT] Transaction id 231
+LSN 176088 [COMMIT] Transaction id 239
+LSN 176116 [COMMIT] Transaction id 247
+LSN 176144 [COMMIT] Transaction id 255
+LSN 176172 [COMMIT] Transaction id 263
+LSN 176200 [COMMIT] Transaction id 271
+LSN 176228 [COMMIT] Transaction id 279
+LSN 176256 [COMMIT] Transaction id 287
+LSN 176284 [COMMIT] Transaction id 295
+LSN 176312 [COMMIT] Transaction id 211
+LSN 176340 [COMMIT] Transaction id 227
+LSN 176368 [COMMIT] Transaction id 243
+LSN 176396 [COMMIT] Transaction id 259
+LSN 176424 [COMMIT] Transaction id 275
+LSN 176452 [COMMIT] Transaction id 291
+LSN 176480 [COMMIT] Transaction id 219
+LSN 176508 [COMMIT] Transaction id 251
+LSN 176536 [COMMIT] Transaction id 283
+LSN 176564 [COMMIT] Transaction id 235
+LSN 176592 [COMMIT] Transaction id 299
+LSN 176620 [COMMIT] Transaction id 267
+LSN 176648 [COMMIT] Transaction id 301
+LSN 176676 [COMMIT] Transaction id 303
+LSN 176704 [COMMIT] Transaction id 305
+LSN 176732 [COMMIT] Transaction id 307
+LSN 176760 [COMMIT] Transaction id 309
+LSN 176788 [COMMIT] Transaction id 311
+LSN 176816 [COMMIT] Transaction id 313
+LSN 176844 [COMMIT] Transaction id 317
+LSN 176872 [COMMIT] Transaction id 319
+LSN 176900 [COMMIT] Transaction id 323
+LSN 176928 [COMMIT] Transaction id 321
+LSN 176956 [COMMIT] Transaction id 325
+LSN 176984 [COMMIT] Transaction id 327
+LSN 177012 [COMMIT] Transaction id 329
+LSN 177040 [COMMIT] Transaction id 331
+LSN 177068 [COMMIT] Transaction id 333
+LSN 177096 [COMMIT] Transaction id 335
+LSN 177124 [COMMIT] Transaction id 337
+LSN 177152 [COMMIT] Transaction id 339
+LSN 177180 [COMMIT] Transaction id 341
+LSN 177208 [COMMIT] Transaction id 343
+LSN 177236 [COMMIT] Transaction id 345
+LSN 177264 [COMMIT] Transaction id 347
+LSN 177292 [COMMIT] Transaction id 349
+LSN 177320 [COMMIT] Transaction id 351
+LSN 177348 [COMMIT] Transaction id 353
+LSN 177376 [COMMIT] Transaction id 355
+LSN 177404 [COMMIT] Transaction id 357
+LSN 177432 [COMMIT] Transaction id 359
+LSN 177460 [COMMIT] Transaction id 361
+LSN 177488 [COMMIT] Transaction id 363
+LSN 177516 [COMMIT] Transaction id 365
+LSN 177544 [COMMIT] Transaction id 367
+LSN 177572 [COMMIT] Transaction id 369
+LSN 177600 [COMMIT] Transaction id 371
+LSN 177628 [COMMIT] Transaction id 373
+LSN 177656 [COMMIT] Transaction id 375
+LSN 177684 [COMMIT] Transaction id 377
+LSN 177712 [COMMIT] Transaction id 379
+LSN 177740 [COMMIT] Transaction id 381
+LSN 177768 [COMMIT] Transaction id 382
+LSN 177796 [COMMIT] Transaction id 384
+LSN 177824 [COMMIT] Transaction id 386
+LSN 177852 [COMMIT] Transaction id 388
+LSN 177880 [COMMIT] Transaction id 390
+LSN 177908 [COMMIT] Transaction id 392
+LSN 177936 [COMMIT] Transaction id 394
+LSN 177964 [COMMIT] Transaction id 395
+LSN 177992 [COMMIT] Transaction id 397
+LSN 178020 [COMMIT] Transaction id 399
+LSN 178048 [COMMIT] Transaction id 401
+LSN 178076 [COMMIT] Transaction id 403
+LSN 178104 [COMMIT] Transaction id 405
+LSN 178132 [COMMIT] Transaction id 407
+LSN 178160 [COMMIT] Transaction id 409
+LSN 178188 [COMMIT] Transaction id 28
+LSN 178216 [COMMIT] Transaction id 32
+LSN 178244 [COMMIT] Transaction id 36
+LSN 178272 [COMMIT] Transaction id 40
+LSN 178300 [COMMIT] Transaction id 45
+LSN 178328 [COMMIT] Transaction id 49
+LSN 178356 [COMMIT] Transaction id 53
+LSN 178384 [COMMIT] Transaction id 57
+LSN 178412 [COMMIT] Transaction id 61
+LSN 178440 [COMMIT] Transaction id 65
+LSN 178468 [COMMIT] Transaction id 69
+LSN 178496 [COMMIT] Transaction id 73
+LSN 178524 [COMMIT] Transaction id 77
+LSN 178552 [COMMIT] Transaction id 81
+LSN 178580 [COMMIT] Transaction id 85
+LSN 178608 [COMMIT] Transaction id 89
+LSN 178636 [COMMIT] Transaction id 93
+LSN 178664 [COMMIT] Transaction id 97
+LSN 178692 [COMMIT] Transaction id 101
+LSN 178720 [COMMIT] Transaction id 105
+LSN 178748 [COMMIT] Transaction id 109
+LSN 178776 [COMMIT] Transaction id 114
+LSN 178804 [COMMIT] Transaction id 119
+LSN 178832 [COMMIT] Transaction id 123
+LSN 178860 [COMMIT] Transaction id 131
+LSN 178888 [COMMIT] Transaction id 139
+LSN 178916 [COMMIT] Transaction id 135
+LSN 178944 [COMMIT] Transaction id 127
+LSN 178972 [COMMIT] Transaction id 143
+LSN 179000 [COMMIT] Transaction id 147
+LSN 179028 [COMMIT] Transaction id 151
+LSN 179056 [COMMIT] Transaction id 155
+LSN 179084 [COMMIT] Transaction id 159
+LSN 179112 [COMMIT] Transaction id 163
+LSN 179140 [COMMIT] Transaction id 167
+LSN 179168 [COMMIT] Transaction id 171
+LSN 179196 [COMMIT] Transaction id 175
+LSN 179224 [COMMIT] Transaction id 179
+LSN 179252 [COMMIT] Transaction id 183
+LSN 179280 [COMMIT] Transaction id 187
+LSN 179308 [COMMIT] Transaction id 191
+LSN 179336 [COMMIT] Transaction id 196
+LSN 179364 [COMMIT] Transaction id 200
+LSN 179392 [COMMIT] Transaction id 204
+LSN 179420 [COMMIT] Transaction id 208
+LSN 179448 [COMMIT] Transaction id 212
+LSN 179476 [COMMIT] Transaction id 216
+LSN 179504 [COMMIT] Transaction id 220
+LSN 179532 [COMMIT] Transaction id 224
+LSN 179560 [COMMIT] Transaction id 228
+LSN 179588 [COMMIT] Transaction id 232
+LSN 179616 [COMMIT] Transaction id 236
+LSN 179644 [COMMIT] Transaction id 240
+LSN 179672 [COMMIT] Transaction id 244
+LSN 179700 [COMMIT] Transaction id 248
+LSN 179728 [COMMIT] Transaction id 252
+LSN 179756 [COMMIT] Transaction id 256
+LSN 179784 [COMMIT] Transaction id 260
+LSN 179812 [COMMIT] Transaction id 264
+LSN 179840 [COMMIT] Transaction id 268
+LSN 179868 [COMMIT] Transaction id 272
+LSN 179896 [COMMIT] Transaction id 276
+LSN 179924 [COMMIT] Transaction id 280
+LSN 179952 [COMMIT] Transaction id 284
+LSN 179980 [COMMIT] Transaction id 288
+LSN 180008 [COMMIT] Transaction id 292
+LSN 180036 [COMMIT] Transaction id 296
+LSN 180064 [COMMIT] Transaction id 300
+LSN 180092 [COMMIT] Transaction id 304
+LSN 180120 [COMMIT] Transaction id 308
+LSN 180148 [COMMIT] Transaction id 312
+LSN 180176 [COMMIT] Transaction id 316
+LSN 180204 [COMMIT] Transaction id 320
+LSN 180232 [COMMIT] Transaction id 324
+LSN 180260 [COMMIT] Transaction id 328
+LSN 180288 [COMMIT] Transaction id 332
+LSN 180316 [COMMIT] Transaction id 336
+LSN 180344 [COMMIT] Transaction id 340
+LSN 180372 [COMMIT] Transaction id 344
+LSN 180400 [COMMIT] Transaction id 348
+LSN 180428 [COMMIT] Transaction id 352
+LSN 180456 [COMMIT] Transaction id 356
+LSN 180484 [COMMIT] Transaction id 360
+LSN 180512 [COMMIT] Transaction id 364
+LSN 180540 [COMMIT] Transaction id 368
+LSN 180568 [COMMIT] Transaction id 372
+LSN 180596 [COMMIT] Transaction id 376
+LSN 180624 [COMMIT] Transaction id 380
+LSN 180652 [COMMIT] Transaction id 383
+LSN 180680 [COMMIT] Transaction id 387
+LSN 180708 [COMMIT] Transaction id 391
+LSN 180736 [COMMIT] Transaction id 396
+LSN 180764 [COMMIT] Transaction id 400
+LSN 180792 [COMMIT] Transaction id 404
+LSN 180820 [COMMIT] Transaction id 408
+LSN 180848 [COMMIT] Transaction id 411
+LSN 180876 [COMMIT] Transaction id 30
+LSN 180904 [COMMIT] Transaction id 38
+LSN 180932 [COMMIT] Transaction id 55
+LSN 180960 [COMMIT] Transaction id 47
+LSN 180988 [COMMIT] Transaction id 63
+LSN 181016 [COMMIT] Transaction id 71
+LSN 181044 [COMMIT] Transaction id 79
+LSN 181072 [COMMIT] Transaction id 87
+LSN 181100 [COMMIT] Transaction id 95
+LSN 181128 [COMMIT] Transaction id 103
+LSN 181156 [COMMIT] Transaction id 111
+LSN 181184 [COMMIT] Transaction id 121
+LSN 181212 [COMMIT] Transaction id 129
+LSN 181240 [COMMIT] Transaction id 137
+LSN 181268 [COMMIT] Transaction id 145
+LSN 181296 [COMMIT] Transaction id 153
+LSN 181324 [COMMIT] Transaction id 161
+LSN 181352 [COMMIT] Transaction id 165
+LSN 181380 [COMMIT] Transaction id 173
+LSN 181408 [COMMIT] Transaction id 181
+LSN 181436 [COMMIT] Transaction id 189
+LSN 181464 [COMMIT] Transaction id 198
+LSN 181492 [COMMIT] Transaction id 206
+LSN 181520 [COMMIT] Transaction id 214
+LSN 181548 [COMMIT] Transaction id 222
+LSN 181576 [COMMIT] Transaction id 230
+LSN 181604 [COMMIT] Transaction id 238
+LSN 181632 [COMMIT] Transaction id 246
+LSN 181660 [COMMIT] Transaction id 254
+LSN 181688 [COMMIT] Transaction id 262
+LSN 181716 [COMMIT] Transaction id 270
+LSN 181744 [COMMIT] Transaction id 278
+LSN 181772 [COMMIT] Transaction id 286
+LSN 181800 [COMMIT] Transaction id 294
+LSN 181828 [COMMIT] Transaction id 302
+LSN 181856 [COMMIT] Transaction id 310
+LSN 181884 [COMMIT] Transaction id 318
+LSN 181912 [COMMIT] Transaction id 326
+LSN 181940 [COMMIT] Transaction id 334
+LSN 181968 [COMMIT] Transaction id 350
+LSN 181996 [COMMIT] Transaction id 366
+LSN 182024 [COMMIT] Transaction id 358
+LSN 182052 [COMMIT] Transaction id 342
+LSN 182080 [COMMIT] Transaction id 374
+LSN 182108 [COMMIT] Transaction id 385
+LSN 182136 [COMMIT] Transaction id 393
+LSN 182164 [COMMIT] Transaction id 402
+LSN 182192 [COMMIT] Transaction id 410
+LSN 182220 [COMMIT] Transaction id 43
+LSN 182248 [COMMIT] Transaction id 59
+LSN 182276 [COMMIT] Transaction id 75
+LSN 182304 [COMMIT] Transaction id 91
+LSN 182332 [COMMIT] Transaction id 107
+LSN 182360 [COMMIT] Transaction id 125
+LSN 182388 [COMMIT] Transaction id 141
+LSN 182416 [COMMIT] Transaction id 157
+LSN 182444 [COMMIT] Transaction id 169
+LSN 182472 [COMMIT] Transaction id 185
+LSN 182500 [COMMIT] Transaction id 202
+LSN 182528 [COMMIT] Transaction id 218
+LSN 182556 [COMMIT] Transaction id 234
+LSN 182584 [COMMIT] Transaction id 250
+LSN 182612 [COMMIT] Transaction id 266
+LSN 182640 [COMMIT] Transaction id 282
+LSN 182668 [COMMIT] Transaction id 298
+LSN 182696 [COMMIT] Transaction id 314
+LSN 182724 [COMMIT] Transaction id 330
+LSN 182752 [COMMIT] Transaction id 346
+LSN 182780 [COMMIT] Transaction id 362
+LSN 182808 [COMMIT] Transaction id 378
+LSN 182836 [COMMIT] Transaction id 389
+LSN 182864 [COMMIT] Transaction id 406
+LSN 182892 [COMMIT] Transaction id 51
+LSN 182920 [COMMIT] Transaction id 83
+LSN 182948 [COMMIT] Transaction id 117
+LSN 182976 [COMMIT] Transaction id 149
+LSN 183004 [COMMIT] Transaction id 194
+LSN 183032 [COMMIT] Transaction id 226
+LSN 183060 [COMMIT] Transaction id 258
+LSN 183088 [COMMIT] Transaction id 290
+LSN 183116 [COMMIT] Transaction id 322
+LSN 183144 [COMMIT] Transaction id 354
+LSN 183172 [COMMIT] Transaction id 398
+LSN 183200 [COMMIT] Transaction id 67
+LSN 183228 [COMMIT] Transaction id 133
+LSN 183256 [COMMIT] Transaction id 210
+LSN 183284 [COMMIT] Transaction id 274
+LSN 183312 [COMMIT] Transaction id 338
+LSN 183340 [COMMIT] Transaction id 34
+LSN 183368 [COMMIT] Transaction id 177
+LSN 183396 [COMMIT] Transaction id 306
+LSN 183424 [COMMIT] Transaction id 99
+LSN 183452 [COMMIT] Transaction id 370
+LSN 183480 [COMMIT] Transaction id 242
+LSN 183508 [COMMIT] Transaction id 412
+LSN 183536 [COMMIT] Transaction id 413
+LSN 183564 [COMMIT] Transaction id 414
+LSN 183592 [COMMIT] Transaction id 416
+LSN 183620 [COMMIT] Transaction id 418
+LSN 183648 [COMMIT] Transaction id 420
+LSN 183676 [COMMIT] Transaction id 422
+LSN 183704 [COMMIT] Transaction id 424
+LSN 183732 [COMMIT] Transaction id 426
+LSN 183760 [COMMIT] Transaction id 428
+LSN 183788 [COMMIT] Transaction id 417
+LSN 183816 [COMMIT] Transaction id 421
+LSN 183844 [COMMIT] Transaction id 425
+LSN 183872 [COMMIT] Transaction id 415
+LSN 183900 [COMMIT] Transaction id 419
+LSN 183928 [COMMIT] Transaction id 423
+LSN 183956 [COMMIT] Transaction id 427
+LSN 183984 [COMMIT] Transaction id 429
+LSN 184012 [COMMIT] Transaction id 430
+LSN 184040 [COMMIT] Transaction id 431
+LSN 184068 [COMMIT] Transaction id 433
+LSN 184096 [COMMIT] Transaction id 435
+LSN 184124 [COMMIT] Transaction id 437
+LSN 184152 [COMMIT] Transaction id 439
+LSN 184180 [COMMIT] Transaction id 434
+LSN 184208 [COMMIT] Transaction id 438
+LSN 184236 [COMMIT] Transaction id 436
+LSN 184264 [COMMIT] Transaction id 432
+LSN 184292 [COMMIT] Transaction id 440
+LSN 184320 [COMMIT] Transaction id 441
+LSN 184348 [COMMIT] Transaction id 443
+LSN 184376 [COMMIT] Transaction id 444
+LSN 184404 [COMMIT] Transaction id 442
+LSN 184432 [COMMIT] Transaction id 445
+LSN 184460 [COMMIT] Transaction id 446
+LSN 184488 [COMMIT] Transaction id 447
+LSN 184516 [COMMIT] Transaction id 449
+LSN 184544 [COMMIT] Transaction id 448
+LSN 184572 [COMMIT] Transaction id 450
+LSN 184600 [COMMIT] Transaction id 451
+LSN 184628 [COMMIT] Transaction id 452
+LSN 184656 [COMMIT] Transaction id 453
+LSN 184684 [COMMIT] Transaction id 454
+LSN 184712 [COMMIT] Transaction id 455
+LSN 184740 [COMMIT] Transaction id 456
+LSN 184768 [COMMIT] Transaction id 457
+LSN 184796 [COMMIT] Transaction id 458
+LSN 184824 [COMMIT] Transaction id 459
+LSN 184852 [COMMIT] Transaction id 460
+LSN 184880 [COMMIT] Transaction id 461
+LSN 184908 [COMMIT] Transaction id 462
+LSN 184936 [COMMIT] Transaction id 463
+LSN 184964 [COMMIT] Transaction id 464
+LSN 184992 [COMMIT] Transaction id 465
+LSN 185020 [COMMIT] Transaction id 466
+LSN 185048 [COMMIT] Transaction id 467
+LSN 185076 [COMMIT] Transaction id 468
+LSN 185104 [COMMIT] Transaction id 469
+LSN 185132 [COMMIT] Transaction id 470
+LSN 185160 [COMMIT] Transaction id 471
+LSN 185188 [COMMIT] Transaction id 472
+LSN 185216 [COMMIT] Transaction id 473
+LSN 185244 [COMMIT] Transaction id 475
+LSN 185272 [COMMIT] Transaction id 474
+LSN 185300 [COMMIT] Transaction id 477
+LSN 185328 [COMMIT] Transaction id 479
+LSN 185356 [COMMIT] Transaction id 478
+LSN 185384 [COMMIT] Transaction id 476
+LSN 185412 [COMMIT] Transaction id 481
+LSN 185440 [COMMIT] Transaction id 480
+LSN 185468 [COMMIT] Transaction id 482
+LSN 185496 [COMMIT] Transaction id 484
+LSN 185524 [COMMIT] Transaction id 486
+LSN 185552 [COMMIT] Transaction id 485
+LSN 185580 [COMMIT] Transaction id 483
+LSN 185608 [COMMIT] Transaction id 487
+LSN 185636 [COMMIT] Transaction id 488
+LSN 185664 [COMMIT] Transaction id 489
+LSN 185692 [COMMIT] Transaction id 491
+LSN 185720 [COMMIT] Transaction id 493
+LSN 185748 [COMMIT] Transaction id 495
+LSN 185776 [COMMIT] Transaction id 490
+LSN 185804 [COMMIT] Transaction id 494
+LSN 185832 [COMMIT] Transaction id 492
+LSN 185860 [COMMIT] Transaction id 496
+LSN 185888 [COMMIT] Transaction id 497
+LSN 185916 [COMMIT] Transaction id 498
+LSN 185944 [COMMIT] Transaction id 499
+LSN 185972 [COMMIT] Transaction id 500
+LSN 186000 [COMMIT] Transaction id 501
+LSN 186028 [COMMIT] Transaction id 502
+LSN 186056 [COMMIT] Transaction id 504
+LSN 186084 [COMMIT] Transaction id 503
+LSN 186112 [COMMIT] Transaction id 506
+LSN 186140 [COMMIT] Transaction id 508
+LSN 186168 [COMMIT] Transaction id 510
+LSN 186196 [COMMIT] Transaction id 512
+LSN 186224 [COMMIT] Transaction id 514
+LSN 186252 [COMMIT] Transaction id 516
+LSN 186280 [COMMIT] Transaction id 518
+LSN 186308 [COMMIT] Transaction id 522
+LSN 186336 [COMMIT] Transaction id 520
+LSN 186364 [COMMIT] Transaction id 505
+LSN 186392 [COMMIT] Transaction id 509
+LSN 186420 [COMMIT] Transaction id 513
+LSN 186448 [COMMIT] Transaction id 517
+LSN 186476 [COMMIT] Transaction id 521
+LSN 186504 [COMMIT] Transaction id 511
+LSN 186532 [COMMIT] Transaction id 519
+LSN 186560 [COMMIT] Transaction id 515
+LSN 186588 [COMMIT] Transaction id 507
+LSN 186616 [COMMIT] Transaction id 523
+LSN 186644 [COMMIT] Transaction id 524
+LSN 186672 [COMMIT] Transaction id 525
+LSN 186700 [COMMIT] Transaction id 526
+LSN 186728 [COMMIT] Transaction id 527
+LSN 186756 [COMMIT] Transaction id 528
+LSN 186784 [COMMIT] Transaction id 529
+LSN 186812 [COMMIT] Transaction id 530
+LSN 186840 [COMMIT] Transaction id 531
+LSN 186868 [COMMIT] Transaction id 532
+LSN 186896 [COMMIT] Transaction id 533
+LSN 186924 [COMMIT] Transaction id 534
+LSN 186952 [COMMIT] Transaction id 535
+LSN 186980 [COMMIT] Transaction id 536
+LSN 187008 [COMMIT] Transaction id 538
+LSN 187036 [COMMIT] Transaction id 540
+LSN 187064 [COMMIT] Transaction id 542
+LSN 187092 [COMMIT] Transaction id 543
+LSN 187120 [COMMIT] Transaction id 537
+LSN 187148 [COMMIT] Transaction id 541
+LSN 187176 [COMMIT] Transaction id 544
+LSN 187204 [COMMIT] Transaction id 539
+LSN 187232 [COMMIT] Transaction id 545
+LSN 187260 [COMMIT] Transaction id 546
+LSN 187288 [COMMIT] Transaction id 315
+LSN 187316 [COMMIT] Transaction id 547
+LSN 187344 [COMMIT] Transaction id 548
+LSN 187372 [COMMIT] Transaction id 549
+LSN 187400 [COMMIT] Transaction id 551
+LSN 187428 [COMMIT] Transaction id 553
+LSN 187456 [COMMIT] Transaction id 555
+LSN 187484 [COMMIT] Transaction id 557
+LSN 187512 [COMMIT] Transaction id 559
+LSN 187540 [COMMIT] Transaction id 561
+LSN 187568 [COMMIT] Transaction id 564
+LSN 187596 [COMMIT] Transaction id 566
+LSN 187624 [COMMIT] Transaction id 568
+LSN 187652 [COMMIT] Transaction id 550
+LSN 187680 [COMMIT] Transaction id 554
+LSN 187708 [COMMIT] Transaction id 558
+LSN 187736 [COMMIT] Transaction id 567
+LSN 187764 [COMMIT] Transaction id 562
+LSN 187792 [COMMIT] Transaction id 571
+LSN 187820 [COMMIT] Transaction id 556
+LSN 187848 [COMMIT] Transaction id 565
+LSN 187876 [COMMIT] Transaction id 563
+LSN 187904 [COMMIT] Transaction id 560
+LSN 187932 [COMMIT] Transaction id 569
+LSN 187960 [COMMIT] Transaction id 570
+LSN 187988 [COMMIT] Transaction id 552
+LSN 188016 [COMMIT] Transaction id 729
+LSN 188044 [COMMIT] Transaction id 726
+LSN 188072 [COMMIT] Transaction id 572
+LSN 188100 [COMMIT] Transaction id 573
+LSN 188128 [COMMIT] Transaction id 574
+LSN 188156 [COMMIT] Transaction id 575
+LSN 188184 [COMMIT] Transaction id 576
+LSN 188212 [COMMIT] Transaction id 577
+LSN 188240 [COMMIT] Transaction id 578
+LSN 188268 [COMMIT] Transaction id 579
+LSN 188296 [COMMIT] Transaction id 580
+LSN 188324 [COMMIT] Transaction id 581
+LSN 188352 [COMMIT] Transaction id 582
+LSN 188380 [COMMIT] Transaction id 583
+LSN 188408 [COMMIT] Transaction id 584
+LSN 188436 [COMMIT] Transaction id 585
+LSN 188464 [COMMIT] Transaction id 586
+LSN 188492 [COMMIT] Transaction id 587
+LSN 188520 [COMMIT] Transaction id 588
+LSN 188548 [COMMIT] Transaction id 589
+LSN 188576 [COMMIT] Transaction id 590
+LSN 188604 [COMMIT] Transaction id 591
+LSN 188632 [COMMIT] Transaction id 592
+LSN 188660 [COMMIT] Transaction id 593
+LSN 188688 [COMMIT] Transaction id 594
+LSN 188716 [COMMIT] Transaction id 595
+LSN 188744 [COMMIT] Transaction id 596
+LSN 188772 [COMMIT] Transaction id 597
+LSN 188800 [COMMIT] Transaction id 598
+LSN 188828 [COMMIT] Transaction id 599
+LSN 188856 [COMMIT] Transaction id 600
+LSN 188884 [COMMIT] Transaction id 601
+LSN 188912 [COMMIT] Transaction id 602
+LSN 188940 [COMMIT] Transaction id 603
+LSN 188968 [COMMIT] Transaction id 604
+LSN 188996 [COMMIT] Transaction id 605
+LSN 189024 [COMMIT] Transaction id 606
+LSN 189052 [COMMIT] Transaction id 607
+LSN 189080 [COMMIT] Transaction id 608
+LSN 189108 [COMMIT] Transaction id 609
+LSN 189136 [COMMIT] Transaction id 610
+LSN 189164 [COMMIT] Transaction id 611
+LSN 189192 [COMMIT] Transaction id 612
+LSN 189220 [COMMIT] Transaction id 613
+LSN 189248 [COMMIT] Transaction id 614
+LSN 189276 [COMMIT] Transaction id 615
+LSN 189304 [COMMIT] Transaction id 617
+LSN 189332 [COMMIT] Transaction id 616
+LSN 189360 [COMMIT] Transaction id 618
+LSN 189388 [COMMIT] Transaction id 620
+LSN 189416 [COMMIT] Transaction id 621
+LSN 189444 [COMMIT] Transaction id 622
+LSN 189472 [COMMIT] Transaction id 623
+LSN 189500 [COMMIT] Transaction id 624
+LSN 189528 [COMMIT] Transaction id 625
+LSN 189556 [COMMIT] Transaction id 626
+LSN 189584 [COMMIT] Transaction id 627
+LSN 189612 [COMMIT] Transaction id 628
+LSN 189640 [COMMIT] Transaction id 629
+LSN 189668 [COMMIT] Transaction id 630
+LSN 189696 [COMMIT] Transaction id 631
+LSN 189724 [COMMIT] Transaction id 632
+LSN 189752 [COMMIT] Transaction id 633
+LSN 189780 [COMMIT] Transaction id 634
+LSN 189808 [COMMIT] Transaction id 635
+LSN 189836 [COMMIT] Transaction id 636
+LSN 189864 [COMMIT] Transaction id 638
+LSN 189892 [COMMIT] Transaction id 637
+LSN 189920 [COMMIT] Transaction id 639
+LSN 189948 [COMMIT] Transaction id 640
+LSN 189976 [COMMIT] Transaction id 641
+LSN 190004 [COMMIT] Transaction id 642
+LSN 190032 [COMMIT] Transaction id 643
+LSN 190060 [COMMIT] Transaction id 644
+LSN 190088 [COMMIT] Transaction id 645
+LSN 190116 [COMMIT] Transaction id 646
+LSN 190144 [COMMIT] Transaction id 647
+LSN 190172 [COMMIT] Transaction id 648
+LSN 190200 [COMMIT] Transaction id 649
+LSN 190228 [COMMIT] Transaction id 650
+LSN 190256 [COMMIT] Transaction id 651
+LSN 190284 [COMMIT] Transaction id 652
+LSN 190312 [COMMIT] Transaction id 653
+LSN 190340 [COMMIT] Transaction id 654
+LSN 190368 [COMMIT] Transaction id 655
+LSN 190396 [COMMIT] Transaction id 656
+LSN 190424 [COMMIT] Transaction id 657
+LSN 190452 [COMMIT] Transaction id 658
+LSN 190480 [COMMIT] Transaction id 659
+LSN 190508 [COMMIT] Transaction id 660
+LSN 190536 [COMMIT] Transaction id 661
+LSN 190564 [COMMIT] Transaction id 662
+LSN 190592 [COMMIT] Transaction id 663
+LSN 190620 [COMMIT] Transaction id 664
+LSN 190648 [COMMIT] Transaction id 665
+LSN 190676 [COMMIT] Transaction id 666
+LSN 190704 [COMMIT] Transaction id 667
+LSN 190732 [COMMIT] Transaction id 668
+LSN 190760 [COMMIT] Transaction id 669
+LSN 190788 [COMMIT] Transaction id 671
+LSN 190816 [COMMIT] Transaction id 672
+LSN 190844 [COMMIT] Transaction id 674
+LSN 190872 [COMMIT] Transaction id 677
+LSN 190900 [COMMIT] Transaction id 680
+LSN 190928 [COMMIT] Transaction id 676
+LSN 190956 [COMMIT] Transaction id 673
+LSN 190984 [COMMIT] Transaction id 679
+LSN 191012 [COMMIT] Transaction id 675
+LSN 191040 [COMMIT] Transaction id 678
+LSN 191068 [COMMIT] Transaction id 681
+LSN 191096 [COMMIT] Transaction id 682
+LSN 191124 [COMMIT] Transaction id 683
+LSN 191152 [COMMIT] Transaction id 685
+LSN 191180 [COMMIT] Transaction id 687
+LSN 191208 [COMMIT] Transaction id 688
+LSN 191236 [COMMIT] Transaction id 690
+LSN 191264 [COMMIT] Transaction id 692
+LSN 191292 [COMMIT] Transaction id 694
+LSN 191320 [COMMIT] Transaction id 696
+LSN 191348 [COMMIT] Transaction id 698
+LSN 191376 [COMMIT] Transaction id 700
+LSN 191404 [COMMIT] Transaction id 702
+LSN 191432 [COMMIT] Transaction id 704
+LSN 191460 [COMMIT] Transaction id 707
+LSN 191488 [COMMIT] Transaction id 708
+LSN 191516 [COMMIT] Transaction id 710
+LSN 191544 [COMMIT] Transaction id 711
+LSN 191572 [COMMIT] Transaction id 713
+LSN 191600 [COMMIT] Transaction id 716
+LSN 191628 [COMMIT] Transaction id 718
+LSN 191656 [COMMIT] Transaction id 720
+LSN 191684 [COMMIT] Transaction id 722
+LSN 191712 [COMMIT] Transaction id 724
+LSN 191740 [COMMIT] Transaction id 684
+LSN 191768 [COMMIT] Transaction id 686
+LSN 191796 [COMMIT] Transaction id 691
+LSN 191824 [COMMIT] Transaction id 695
+LSN 191852 [COMMIT] Transaction id 699
+LSN 191880 [COMMIT] Transaction id 703
+LSN 191908 [COMMIT] Transaction id 706
+LSN 191936 [COMMIT] Transaction id 712
+LSN 191964 [COMMIT] Transaction id 715
+LSN 191992 [COMMIT] Transaction id 719
+LSN 192020 [COMMIT] Transaction id 723
+LSN 192048 [COMMIT] Transaction id 727
+LSN 192076 [COMMIT] Transaction id 693
+LSN 192104 [COMMIT] Transaction id 701
+LSN 192132 [COMMIT] Transaction id 709
+LSN 192160 [COMMIT] Transaction id 717
+LSN 192188 [COMMIT] Transaction id 725
+LSN 192216 [COMMIT] Transaction id 697
+LSN 192244 [COMMIT] Transaction id 714
+LSN 192272 [COMMIT] Transaction id 689
+LSN 192300 [COMMIT] Transaction id 721
+LSN 192328 [COMMIT] Transaction id 705
+LSN 192356 [COMMIT] Transaction id 670
+LSN 192384 [COMMIT] Transaction id 939
+LSN 192412 [COMMIT] Transaction id 941
+LSN 192440 [COMMIT] Transaction id 943
+LSN 192468 [COMMIT] Transaction id 945
+LSN 192496 [COMMIT] Transaction id 947
+LSN 192524 [COMMIT] Transaction id 949
+LSN 192552 [COMMIT] Transaction id 951
+LSN 192580 [COMMIT] Transaction id 953
+LSN 192608 [COMMIT] Transaction id 954
+LSN 192636 [COMMIT] Transaction id 956
+LSN 192664 [COMMIT] Transaction id 958
+LSN 192692 [COMMIT] Transaction id 960
+LSN 192720 [COMMIT] Transaction id 962
+LSN 192748 [COMMIT] Transaction id 964
+LSN 192776 [COMMIT] Transaction id 966
+LSN 192804 [COMMIT] Transaction id 968
+LSN 192832 [COMMIT] Transaction id 970
+LSN 192860 [COMMIT] Transaction id 972
+LSN 192888 [COMMIT] Transaction id 974
+LSN 192916 [COMMIT] Transaction id 976
+LSN 192944 [COMMIT] Transaction id 978
+LSN 192972 [COMMIT] Transaction id 980
+LSN 193000 [COMMIT] Transaction id 982
+LSN 193028 [COMMIT] Transaction id 984
+LSN 193056 [COMMIT] Transaction id 986
+LSN 193084 [COMMIT] Transaction id 988
+LSN 193112 [COMMIT] Transaction id 990
+LSN 193140 [COMMIT] Transaction id 991
+LSN 193168 [COMMIT] Transaction id 993
+LSN 193196 [COMMIT] Transaction id 995
+LSN 193224 [COMMIT] Transaction id 997
+LSN 193252 [COMMIT] Transaction id 999
+LSN 193280 [COMMIT] Transaction id 736
+LSN 193308 [COMMIT] Transaction id 740
+LSN 193336 [COMMIT] Transaction id 744
+LSN 193364 [COMMIT] Transaction id 619
+LSN 193392 [COMMIT] Transaction id 735
+LSN 193420 [COMMIT] Transaction id 733
+LSN 193448 [COMMIT] Transaction id 737
+LSN 193476 [COMMIT] Transaction id 739
+LSN 193504 [COMMIT] Transaction id 741
+LSN 193532 [COMMIT] Transaction id 743
+LSN 193560 [COMMIT] Transaction id 745
+LSN 193588 [COMMIT] Transaction id 747
+LSN 193616 [COMMIT] Transaction id 749
+LSN 193644 [COMMIT] Transaction id 751
+LSN 193672 [COMMIT] Transaction id 757
+LSN 193700 [COMMIT] Transaction id 755
+LSN 193728 [COMMIT] Transaction id 753
+LSN 193756 [COMMIT] Transaction id 759
+LSN 193784 [COMMIT] Transaction id 761
+LSN 193812 [COMMIT] Transaction id 763
+LSN 193840 [COMMIT] Transaction id 765
+LSN 193868 [COMMIT] Transaction id 767
+LSN 193896 [COMMIT] Transaction id 769
+LSN 193924 [COMMIT] Transaction id 771
+LSN 193952 [COMMIT] Transaction id 773
+LSN 193980 [COMMIT] Transaction id 775
+LSN 194008 [COMMIT] Transaction id 777
+LSN 194036 [COMMIT] Transaction id 779
+LSN 194064 [COMMIT] Transaction id 781
+LSN 194092 [COMMIT] Transaction id 783
+LSN 194120 [COMMIT] Transaction id 785
+LSN 194148 [COMMIT] Transaction id 787
+LSN 194176 [COMMIT] Transaction id 791
+LSN 194204 [COMMIT] Transaction id 795
+LSN 194232 [COMMIT] Transaction id 789
+LSN 194260 [COMMIT] Transaction id 793
+LSN 194288 [COMMIT] Transaction id 797
+LSN 194316 [COMMIT] Transaction id 799
+LSN 194344 [COMMIT] Transaction id 801
+LSN 194372 [COMMIT] Transaction id 803
+LSN 194400 [COMMIT] Transaction id 805
+LSN 194428 [COMMIT] Transaction id 807
+LSN 194456 [COMMIT] Transaction id 809
+LSN 194484 [COMMIT] Transaction id 811
+LSN 194512 [COMMIT] Transaction id 813
+LSN 194540 [COMMIT] Transaction id 815
+LSN 194568 [COMMIT] Transaction id 819
+LSN 194596 [COMMIT] Transaction id 817
+LSN 194624 [COMMIT] Transaction id 821
+LSN 194652 [COMMIT] Transaction id 823
+LSN 194680 [COMMIT] Transaction id 827
+LSN 194708 [COMMIT] Transaction id 825
+LSN 194736 [COMMIT] Transaction id 829
+LSN 194764 [COMMIT] Transaction id 831
+LSN 194792 [COMMIT] Transaction id 833
+LSN 194820 [COMMIT] Transaction id 835
+LSN 194848 [COMMIT] Transaction id 837
+LSN 194876 [COMMIT] Transaction id 839
+LSN 194904 [COMMIT] Transaction id 843
+LSN 194932 [COMMIT] Transaction id 841
+LSN 194960 [COMMIT] Transaction id 845
+LSN 194988 [COMMIT] Transaction id 847
+LSN 195016 [COMMIT] Transaction id 849
+LSN 195044 [COMMIT] Transaction id 855
+LSN 195072 [COMMIT] Transaction id 851
+LSN 195100 [COMMIT] Transaction id 859
+LSN 195128 [COMMIT] Transaction id 857
+LSN 195156 [COMMIT] Transaction id 861
+LSN 195184 [COMMIT] Transaction id 863
+LSN 195212 [COMMIT] Transaction id 853
+LSN 195240 [COMMIT] Transaction id 865
+LSN 195268 [COMMIT] Transaction id 867
+LSN 195296 [COMMIT] Transaction id 869
+LSN 195324 [COMMIT] Transaction id 871
+LSN 195352 [COMMIT] Transaction id 873
+LSN 195380 [COMMIT] Transaction id 875
+LSN 195408 [COMMIT] Transaction id 877
+LSN 195436 [COMMIT] Transaction id 879
+LSN 195464 [COMMIT] Transaction id 881
+LSN 195492 [COMMIT] Transaction id 883
+LSN 195520 [COMMIT] Transaction id 889
+LSN 195548 [COMMIT] Transaction id 887
+LSN 195576 [COMMIT] Transaction id 885
+LSN 195604 [COMMIT] Transaction id 891
+LSN 195632 [COMMIT] Transaction id 893
+LSN 195660 [COMMIT] Transaction id 895
+LSN 195688 [COMMIT] Transaction id 897
+LSN 195716 [COMMIT] Transaction id 899
+LSN 195744 [COMMIT] Transaction id 901
+LSN 195772 [COMMIT] Transaction id 903
+LSN 195800 [COMMIT] Transaction id 905
+LSN 195828 [COMMIT] Transaction id 907
+LSN 195856 [COMMIT] Transaction id 909
+LSN 195884 [COMMIT] Transaction id 911
+LSN 195912 [COMMIT] Transaction id 913
+LSN 195940 [COMMIT] Transaction id 915
+LSN 195968 [COMMIT] Transaction id 917
+LSN 195996 [COMMIT] Transaction id 919
+LSN 196024 [COMMIT] Transaction id 921
+LSN 196052 [COMMIT] Transaction id 925
+LSN 196080 [COMMIT] Transaction id 923
+LSN 196108 [COMMIT] Transaction id 927
+LSN 196136 [COMMIT] Transaction id 929
+LSN 196164 [COMMIT] Transaction id 931
+LSN 196192 [COMMIT] Transaction id 933
+LSN 196220 [COMMIT] Transaction id 935
+LSN 196248 [COMMIT] Transaction id 937
+LSN 196276 [COMMIT] Transaction id 748
+LSN 196304 [COMMIT] Transaction id 752
+LSN 196332 [COMMIT] Transaction id 756
+LSN 196360 [COMMIT] Transaction id 764
+LSN 196388 [COMMIT] Transaction id 760
+LSN 196416 [COMMIT] Transaction id 768
+LSN 196444 [COMMIT] Transaction id 772
+LSN 196472 [COMMIT] Transaction id 776
+LSN 196500 [COMMIT] Transaction id 780
+LSN 196528 [COMMIT] Transaction id 784
+LSN 196556 [COMMIT] Transaction id 800
+LSN 196584 [COMMIT] Transaction id 808
+LSN 196612 [COMMIT] Transaction id 796
+LSN 196640 [COMMIT] Transaction id 788
+LSN 196668 [COMMIT] Transaction id 804
+LSN 196696 [COMMIT] Transaction id 792
+LSN 196724 [COMMIT] Transaction id 812
+LSN 196752 [COMMIT] Transaction id 816
+LSN 196780 [COMMIT] Transaction id 820
+LSN 196808 [COMMIT] Transaction id 824
+LSN 196836 [COMMIT] Transaction id 828
+LSN 196864 [COMMIT] Transaction id 832
+LSN 196892 [COMMIT] Transaction id 836
+LSN 196920 [COMMIT] Transaction id 840
+LSN 196948 [COMMIT] Transaction id 844
+LSN 196976 [COMMIT] Transaction id 848
+LSN 197004 [COMMIT] Transaction id 852
+LSN 197032 [COMMIT] Transaction id 856
+LSN 197060 [COMMIT] Transaction id 860
+LSN 197088 [COMMIT] Transaction id 864
+LSN 197116 [COMMIT] Transaction id 880
+LSN 197144 [COMMIT] Transaction id 876
+LSN 197172 [COMMIT] Transaction id 868
+LSN 197200 [COMMIT] Transaction id 872
+LSN 197228 [COMMIT] Transaction id 884
+LSN 197256 [COMMIT] Transaction id 888
+LSN 197284 [COMMIT] Transaction id 892
+LSN 197312 [COMMIT] Transaction id 896
+LSN 197340 [COMMIT] Transaction id 900
+LSN 197368 [COMMIT] Transaction id 904
+LSN 197396 [COMMIT] Transaction id 908
+LSN 197424 [COMMIT] Transaction id 912
+LSN 197452 [COMMIT] Transaction id 924
+LSN 197480 [COMMIT] Transaction id 920
+LSN 197508 [COMMIT] Transaction id 928
+LSN 197536 [COMMIT] Transaction id 932
+LSN 197564 [COMMIT] Transaction id 940
+LSN 197592 [COMMIT] Transaction id 936
+LSN 197620 [COMMIT] Transaction id 944
+LSN 197648 [COMMIT] Transaction id 961
+LSN 197676 [COMMIT] Transaction id 957
+LSN 197704 [COMMIT] Transaction id 977
+LSN 197732 [COMMIT] Transaction id 973
+LSN 197760 [COMMIT] Transaction id 965
+LSN 197788 [COMMIT] Transaction id 952
+LSN 197816 [COMMIT] Transaction id 969
+LSN 197844 [COMMIT] Transaction id 948
+LSN 197872 [COMMIT] Transaction id 981
+LSN 197900 [COMMIT] Transaction id 985
+LSN 197928 [COMMIT] Transaction id 989
+LSN 197956 [COMMIT] Transaction id 994
+LSN 197984 [COMMIT] Transaction id 998
+LSN 198012 [COMMIT] Transaction id 730
+LSN 198040 [COMMIT] Transaction id 738
+LSN 198068 [COMMIT] Transaction id 734
+LSN 198096 [COMMIT] Transaction id 746
+LSN 198124 [COMMIT] Transaction id 754
+LSN 198152 [COMMIT] Transaction id 770
+LSN 198180 [COMMIT] Transaction id 762
+LSN 198208 [COMMIT] Transaction id 778
+LSN 198236 [COMMIT] Transaction id 786
+LSN 198264 [COMMIT] Transaction id 794
+LSN 198292 [COMMIT] Transaction id 802
+LSN 198320 [COMMIT] Transaction id 810
+LSN 198348 [COMMIT] Transaction id 818
+LSN 198376 [COMMIT] Transaction id 826
+LSN 198404 [COMMIT] Transaction id 834
+LSN 198432 [COMMIT] Transaction id 842
+LSN 198460 [COMMIT] Transaction id 850
+LSN 198488 [COMMIT] Transaction id 858
+LSN 198516 [COMMIT] Transaction id 866
+LSN 198544 [COMMIT] Transaction id 874
+LSN 198572 [COMMIT] Transaction id 882
+LSN 198600 [COMMIT] Transaction id 890
+LSN 198628 [COMMIT] Transaction id 898
+LSN 198656 [COMMIT] Transaction id 906
+LSN 198684 [COMMIT] Transaction id 914
+LSN 198712 [COMMIT] Transaction id 922
+LSN 198740 [COMMIT] Transaction id 930
+LSN 198768 [COMMIT] Transaction id 938
+LSN 198796 [COMMIT] Transaction id 946
+LSN 198824 [COMMIT] Transaction id 955
+LSN 198852 [COMMIT] Transaction id 963
+LSN 198880 [COMMIT] Transaction id 971
+LSN 198908 [COMMIT] Transaction id 987
+LSN 198936 [COMMIT] Transaction id 979
+LSN 198964 [COMMIT] Transaction id 996
+LSN 198992 [COMMIT] Transaction id 732
+LSN 199020 [COMMIT] Transaction id 742
+LSN 199048 [COMMIT] Transaction id 806
+LSN 199076 [COMMIT] Transaction id 758
+LSN 199104 [COMMIT] Transaction id 774
+LSN 199132 [COMMIT] Transaction id 790
+LSN 199160 [COMMIT] Transaction id 822
+LSN 199188 [COMMIT] Transaction id 838
+LSN 199216 [COMMIT] Transaction id 854
+LSN 199244 [COMMIT] Transaction id 870
+LSN 199272 [COMMIT] Transaction id 886
+LSN 199300 [COMMIT] Transaction id 918
+LSN 199328 [COMMIT] Transaction id 902
+LSN 199356 [COMMIT] Transaction id 934
+LSN 199384 [COMMIT] Transaction id 950
+LSN 199412 [COMMIT] Transaction id 967
+LSN 199440 [COMMIT] Transaction id 983
+LSN 199468 [COMMIT] Transaction id 1000
+LSN 199496 [COMMIT] Transaction id 750
+LSN 199524 [COMMIT] Transaction id 782
+LSN 199552 [COMMIT] Transaction id 814
+LSN 199580 [COMMIT] Transaction id 846
+LSN 199608 [COMMIT] Transaction id 878
+LSN 199636 [COMMIT] Transaction id 910
+LSN 199664 [COMMIT] Transaction id 942
+LSN 199692 [COMMIT] Transaction id 975
+LSN 199720 [COMMIT] Transaction id 766
+LSN 199748 [COMMIT] Transaction id 830
+LSN 199776 [COMMIT] Transaction id 894
+LSN 199804 [COMMIT] Transaction id 959
+LSN 199832 [COMMIT] Transaction id 798
+LSN 199860 [COMMIT] Transaction id 926
+LSN 199888 [COMMIT] Transaction id 862
+LSN 199916 [COMMIT] Transaction id 992
+LSN 199944 [COMMIT] Transaction id 728
+LSN 199972 [COMMIT] Transaction id 731
+LSN 200000 [COMMIT] Transaction id 916
+[REDO] Redo pass end
+[UNDO] Undo pass start
+LSN 199972 [COMMIT] Transaction id 916
+LSN 199944 [COMMIT] Transaction id 731
+LSN 199916 [COMMIT] Transaction id 728
+LSN 199888 [COMMIT] Transaction id 992
+LSN 199860 [COMMIT] Transaction id 862
+LSN 199832 [COMMIT] Transaction id 926
+LSN 199804 [COMMIT] Transaction id 798
+LSN 199776 [COMMIT] Transaction id 959
+LSN 199748 [COMMIT] Transaction id 894
+LSN 199720 [COMMIT] Transaction id 830
+LSN 199692 [COMMIT] Transaction id 766
+LSN 199664 [COMMIT] Transaction id 975
+LSN 199636 [COMMIT] Transaction id 942
+LSN 199608 [COMMIT] Transaction id 910
+LSN 199580 [COMMIT] Transaction id 878
+LSN 199552 [COMMIT] Transaction id 846
+LSN 199524 [COMMIT] Transaction id 814
+LSN 199496 [COMMIT] Transaction id 782
+LSN 199468 [COMMIT] Transaction id 750
+LSN 199440 [COMMIT] Transaction id 1000
+LSN 199412 [COMMIT] Transaction id 983
+LSN 199384 [COMMIT] Transaction id 967
+LSN 199356 [COMMIT] Transaction id 950
+LSN 199328 [COMMIT] Transaction id 934
+LSN 199300 [COMMIT] Transaction id 902
+LSN 199272 [COMMIT] Transaction id 918
+LSN 199244 [COMMIT] Transaction id 886
+LSN 199216 [COMMIT] Transaction id 870
+LSN 199188 [COMMIT] Transaction id 854
+LSN 199160 [COMMIT] Transaction id 838
+LSN 199132 [COMMIT] Transaction id 822
+LSN 199104 [COMMIT] Transaction id 790
+LSN 199076 [COMMIT] Transaction id 774
+LSN 199048 [COMMIT] Transaction id 758
+LSN 199020 [COMMIT] Transaction id 806
+LSN 198992 [COMMIT] Transaction id 742
+LSN 198964 [COMMIT] Transaction id 732
+LSN 198936 [COMMIT] Transaction id 996
+LSN 198908 [COMMIT] Transaction id 979
+LSN 198880 [COMMIT] Transaction id 987
+LSN 198852 [COMMIT] Transaction id 971
+LSN 198824 [COMMIT] Transaction id 963
+LSN 198796 [COMMIT] Transaction id 955
+LSN 198768 [COMMIT] Transaction id 946
+LSN 198740 [COMMIT] Transaction id 938
+LSN 198712 [COMMIT] Transaction id 930
+LSN 198684 [COMMIT] Transaction id 922
+LSN 198656 [COMMIT] Transaction id 914
+LSN 198628 [COMMIT] Transaction id 906
+LSN 198600 [COMMIT] Transaction id 898
+LSN 198572 [COMMIT] Transaction id 890
+LSN 198544 [COMMIT] Transaction id 882
+LSN 198516 [COMMIT] Transaction id 874
+LSN 198488 [COMMIT] Transaction id 866
+LSN 198460 [COMMIT] Transaction id 858
+LSN 198432 [COMMIT] Transaction id 850
+LSN 198404 [COMMIT] Transaction id 842
+LSN 198376 [COMMIT] Transaction id 834
+LSN 198348 [COMMIT] Transaction id 826
+LSN 198320 [COMMIT] Transaction id 818
+LSN 198292 [COMMIT] Transaction id 810
+LSN 198264 [COMMIT] Transaction id 802
+LSN 198236 [COMMIT] Transaction id 794
+LSN 198208 [COMMIT] Transaction id 786
+LSN 198180 [COMMIT] Transaction id 778
+LSN 198152 [COMMIT] Transaction id 762
+LSN 198124 [COMMIT] Transaction id 770
+LSN 198096 [COMMIT] Transaction id 754
+LSN 198068 [COMMIT] Transaction id 746
+LSN 198040 [COMMIT] Transaction id 734
+LSN 198012 [COMMIT] Transaction id 738
+LSN 197984 [COMMIT] Transaction id 730
+LSN 197956 [COMMIT] Transaction id 998
+LSN 197928 [COMMIT] Transaction id 994
+LSN 197900 [COMMIT] Transaction id 989
+LSN 197872 [COMMIT] Transaction id 985
+LSN 197844 [COMMIT] Transaction id 981
+LSN 197816 [COMMIT] Transaction id 948
+LSN 197788 [COMMIT] Transaction id 969
+LSN 197760 [COMMIT] Transaction id 952
+LSN 197732 [COMMIT] Transaction id 965
+LSN 197704 [COMMIT] Transaction id 973
+LSN 197676 [COMMIT] Transaction id 977
+LSN 197648 [COMMIT] Transaction id 957
+LSN 197620 [COMMIT] Transaction id 961
+LSN 197592 [COMMIT] Transaction id 944
+LSN 197564 [COMMIT] Transaction id 936
+LSN 197536 [COMMIT] Transaction id 940
+LSN 197508 [COMMIT] Transaction id 932
+LSN 197480 [COMMIT] Transaction id 928
+LSN 197452 [COMMIT] Transaction id 920
+LSN 197424 [COMMIT] Transaction id 924
+LSN 197396 [COMMIT] Transaction id 912
+LSN 197368 [COMMIT] Transaction id 908
+LSN 197340 [COMMIT] Transaction id 904
+LSN 197312 [COMMIT] Transaction id 900
+LSN 197284 [COMMIT] Transaction id 896
+LSN 197256 [COMMIT] Transaction id 892
+LSN 197228 [COMMIT] Transaction id 888
+LSN 197200 [COMMIT] Transaction id 884
+LSN 197172 [COMMIT] Transaction id 872
+LSN 197144 [COMMIT] Transaction id 868
+LSN 197116 [COMMIT] Transaction id 876
+LSN 197088 [COMMIT] Transaction id 880
+LSN 197060 [COMMIT] Transaction id 864
+LSN 197032 [COMMIT] Transaction id 860
+LSN 197004 [COMMIT] Transaction id 856
+LSN 196976 [COMMIT] Transaction id 852
+LSN 196948 [COMMIT] Transaction id 848
+LSN 196920 [COMMIT] Transaction id 844
+LSN 196892 [COMMIT] Transaction id 840
+LSN 196864 [COMMIT] Transaction id 836
+LSN 196836 [COMMIT] Transaction id 832
+LSN 196808 [COMMIT] Transaction id 828
+LSN 196780 [COMMIT] Transaction id 824
+LSN 196752 [COMMIT] Transaction id 820
+LSN 196724 [COMMIT] Transaction id 816
+LSN 196696 [COMMIT] Transaction id 812
+LSN 196668 [COMMIT] Transaction id 792
+LSN 196640 [COMMIT] Transaction id 804
+LSN 196612 [COMMIT] Transaction id 788
+LSN 196584 [COMMIT] Transaction id 796
+LSN 196556 [COMMIT] Transaction id 808
+LSN 196528 [COMMIT] Transaction id 800
+LSN 196500 [COMMIT] Transaction id 784
+LSN 196472 [COMMIT] Transaction id 780
+LSN 196444 [COMMIT] Transaction id 776
+LSN 196416 [COMMIT] Transaction id 772
+LSN 196388 [COMMIT] Transaction id 768
+LSN 196360 [COMMIT] Transaction id 760
+LSN 196332 [COMMIT] Transaction id 764
+LSN 196304 [COMMIT] Transaction id 756
+LSN 196276 [COMMIT] Transaction id 752
+LSN 196248 [COMMIT] Transaction id 748
+LSN 196220 [COMMIT] Transaction id 937
+LSN 196192 [COMMIT] Transaction id 935
+LSN 196164 [COMMIT] Transaction id 933
+LSN 196136 [COMMIT] Transaction id 931
+LSN 196108 [COMMIT] Transaction id 929
+LSN 196080 [COMMIT] Transaction id 927
+LSN 196052 [COMMIT] Transaction id 923
+LSN 196024 [COMMIT] Transaction id 925
+LSN 195996 [COMMIT] Transaction id 921
+LSN 195968 [COMMIT] Transaction id 919
+LSN 195940 [COMMIT] Transaction id 917
+LSN 195912 [COMMIT] Transaction id 915
+LSN 195884 [COMMIT] Transaction id 913
+LSN 195856 [COMMIT] Transaction id 911
+LSN 195828 [COMMIT] Transaction id 909
+LSN 195800 [COMMIT] Transaction id 907
+LSN 195772 [COMMIT] Transaction id 905
+LSN 195744 [COMMIT] Transaction id 903
+LSN 195716 [COMMIT] Transaction id 901
+LSN 195688 [COMMIT] Transaction id 899
+LSN 195660 [COMMIT] Transaction id 897
+LSN 195632 [COMMIT] Transaction id 895
+LSN 195604 [COMMIT] Transaction id 893
+LSN 195576 [COMMIT] Transaction id 891
+LSN 195548 [COMMIT] Transaction id 885
+LSN 195520 [COMMIT] Transaction id 887
+LSN 195492 [COMMIT] Transaction id 889
+LSN 195464 [COMMIT] Transaction id 883
+LSN 195436 [COMMIT] Transaction id 881
+LSN 195408 [COMMIT] Transaction id 879
+LSN 195380 [COMMIT] Transaction id 877
+LSN 195352 [COMMIT] Transaction id 875
+LSN 195324 [COMMIT] Transaction id 873
+LSN 195296 [COMMIT] Transaction id 871
+LSN 195268 [COMMIT] Transaction id 869
+LSN 195240 [COMMIT] Transaction id 867
+LSN 195212 [COMMIT] Transaction id 865
+LSN 195184 [COMMIT] Transaction id 853
+LSN 195156 [COMMIT] Transaction id 863
+LSN 195128 [COMMIT] Transaction id 861
+LSN 195100 [COMMIT] Transaction id 857
+LSN 195072 [COMMIT] Transaction id 859
+LSN 195044 [COMMIT] Transaction id 851
+LSN 195016 [COMMIT] Transaction id 855
+LSN 194988 [COMMIT] Transaction id 849
+LSN 194960 [COMMIT] Transaction id 847
+LSN 194932 [COMMIT] Transaction id 845
+LSN 194904 [COMMIT] Transaction id 841
+LSN 194876 [COMMIT] Transaction id 843
+LSN 194848 [COMMIT] Transaction id 839
+LSN 194820 [COMMIT] Transaction id 837
+LSN 194792 [COMMIT] Transaction id 835
+LSN 194764 [COMMIT] Transaction id 833
+LSN 194736 [COMMIT] Transaction id 831
+LSN 194708 [COMMIT] Transaction id 829
+LSN 194680 [COMMIT] Transaction id 825
+LSN 194652 [COMMIT] Transaction id 827
+LSN 194624 [COMMIT] Transaction id 823
+LSN 194596 [COMMIT] Transaction id 821
+LSN 194568 [COMMIT] Transaction id 817
+LSN 194540 [COMMIT] Transaction id 819
+LSN 194512 [COMMIT] Transaction id 815
+LSN 194484 [COMMIT] Transaction id 813
+LSN 194456 [COMMIT] Transaction id 811
+LSN 194428 [COMMIT] Transaction id 809
+LSN 194400 [COMMIT] Transaction id 807
+LSN 194372 [COMMIT] Transaction id 805
+LSN 194344 [COMMIT] Transaction id 803
+LSN 194316 [COMMIT] Transaction id 801
+LSN 194288 [COMMIT] Transaction id 799
+LSN 194260 [COMMIT] Transaction id 797
+LSN 194232 [COMMIT] Transaction id 793
+LSN 194204 [COMMIT] Transaction id 789
+LSN 194176 [COMMIT] Transaction id 795
+LSN 194148 [COMMIT] Transaction id 791
+LSN 194120 [COMMIT] Transaction id 787
+LSN 194092 [COMMIT] Transaction id 785
+LSN 194064 [COMMIT] Transaction id 783
+LSN 194036 [COMMIT] Transaction id 781
+LSN 194008 [COMMIT] Transaction id 779
+LSN 193980 [COMMIT] Transaction id 777
+LSN 193952 [COMMIT] Transaction id 775
+LSN 193924 [COMMIT] Transaction id 773
+LSN 193896 [COMMIT] Transaction id 771
+LSN 193868 [COMMIT] Transaction id 769
+LSN 193840 [COMMIT] Transaction id 767
+LSN 193812 [COMMIT] Transaction id 765
+LSN 193784 [COMMIT] Transaction id 763
+LSN 193756 [COMMIT] Transaction id 761
+LSN 193728 [COMMIT] Transaction id 759
+LSN 193700 [COMMIT] Transaction id 753
+LSN 193672 [COMMIT] Transaction id 755
+LSN 193644 [COMMIT] Transaction id 757
+LSN 193616 [COMMIT] Transaction id 751
+LSN 193588 [COMMIT] Transaction id 749
+LSN 193560 [COMMIT] Transaction id 747
+LSN 193532 [COMMIT] Transaction id 745
+LSN 193504 [COMMIT] Transaction id 743
+LSN 193476 [COMMIT] Transaction id 741
+LSN 193448 [COMMIT] Transaction id 739
+LSN 193420 [COMMIT] Transaction id 737
+LSN 193392 [COMMIT] Transaction id 733
+LSN 193364 [COMMIT] Transaction id 735
+LSN 193336 [COMMIT] Transaction id 619
+LSN 193308 [COMMIT] Transaction id 744
+LSN 193280 [COMMIT] Transaction id 740
+LSN 193252 [COMMIT] Transaction id 736
+LSN 193224 [COMMIT] Transaction id 999
+LSN 193196 [COMMIT] Transaction id 997
+LSN 193168 [COMMIT] Transaction id 995
+LSN 193140 [COMMIT] Transaction id 993
+LSN 193112 [COMMIT] Transaction id 991
+LSN 193084 [COMMIT] Transaction id 990
+LSN 193056 [COMMIT] Transaction id 988
+LSN 193028 [COMMIT] Transaction id 986
+LSN 193000 [COMMIT] Transaction id 984
+LSN 192972 [COMMIT] Transaction id 982
+LSN 192944 [COMMIT] Transaction id 980
+LSN 192916 [COMMIT] Transaction id 978
+LSN 192888 [COMMIT] Transaction id 976
+LSN 192860 [COMMIT] Transaction id 974
+LSN 192832 [COMMIT] Transaction id 972
+LSN 192804 [COMMIT] Transaction id 970
+LSN 192776 [COMMIT] Transaction id 968
+LSN 192748 [COMMIT] Transaction id 966
+LSN 192720 [COMMIT] Transaction id 964
+LSN 192692 [COMMIT] Transaction id 962
+LSN 192664 [COMMIT] Transaction id 960
+LSN 192636 [COMMIT] Transaction id 958
+LSN 192608 [COMMIT] Transaction id 956
+LSN 192580 [COMMIT] Transaction id 954
+LSN 192552 [COMMIT] Transaction id 953
+LSN 192524 [COMMIT] Transaction id 951
+LSN 192496 [COMMIT] Transaction id 949
+LSN 192468 [COMMIT] Transaction id 947
+LSN 192440 [COMMIT] Transaction id 945
+LSN 192412 [COMMIT] Transaction id 943
+LSN 192384 [COMMIT] Transaction id 941
+LSN 192356 [COMMIT] Transaction id 939
+LSN 192328 [COMMIT] Transaction id 670
+LSN 192300 [COMMIT] Transaction id 705
+LSN 192272 [COMMIT] Transaction id 721
+LSN 192244 [COMMIT] Transaction id 689
+LSN 192216 [COMMIT] Transaction id 714
+LSN 192188 [COMMIT] Transaction id 697
+LSN 192160 [COMMIT] Transaction id 725
+LSN 192132 [COMMIT] Transaction id 717
+LSN 192104 [COMMIT] Transaction id 709
+LSN 192076 [COMMIT] Transaction id 701
+LSN 192048 [COMMIT] Transaction id 693
+LSN 192020 [COMMIT] Transaction id 727
+LSN 191992 [COMMIT] Transaction id 723
+LSN 191964 [COMMIT] Transaction id 719
+LSN 191936 [COMMIT] Transaction id 715
+LSN 191908 [COMMIT] Transaction id 712
+LSN 191880 [COMMIT] Transaction id 706
+LSN 191852 [COMMIT] Transaction id 703
+LSN 191824 [COMMIT] Transaction id 699
+LSN 191796 [COMMIT] Transaction id 695
+LSN 191768 [COMMIT] Transaction id 691
+LSN 191740 [COMMIT] Transaction id 686
+LSN 191712 [COMMIT] Transaction id 684
+LSN 191684 [COMMIT] Transaction id 724
+LSN 191656 [COMMIT] Transaction id 722
+LSN 191628 [COMMIT] Transaction id 720
+LSN 191600 [COMMIT] Transaction id 718
+LSN 191572 [COMMIT] Transaction id 716
+LSN 191544 [COMMIT] Transaction id 713
+LSN 191516 [COMMIT] Transaction id 711
+LSN 191488 [COMMIT] Transaction id 710
+LSN 191460 [COMMIT] Transaction id 708
+LSN 191432 [COMMIT] Transaction id 707
+LSN 191404 [COMMIT] Transaction id 704
+LSN 191376 [COMMIT] Transaction id 702
+LSN 191348 [COMMIT] Transaction id 700
+LSN 191320 [COMMIT] Transaction id 698
+LSN 191292 [COMMIT] Transaction id 696
+LSN 191264 [COMMIT] Transaction id 694
+LSN 191236 [COMMIT] Transaction id 692
+LSN 191208 [COMMIT] Transaction id 690
+LSN 191180 [COMMIT] Transaction id 688
+LSN 191152 [COMMIT] Transaction id 687
+LSN 191124 [COMMIT] Transaction id 685
+LSN 191096 [COMMIT] Transaction id 683
+LSN 191068 [COMMIT] Transaction id 682
+LSN 191040 [COMMIT] Transaction id 681
+LSN 191012 [COMMIT] Transaction id 678
+LSN 190984 [COMMIT] Transaction id 675
+LSN 190956 [COMMIT] Transaction id 679
+LSN 190928 [COMMIT] Transaction id 673
+LSN 190900 [COMMIT] Transaction id 676
+LSN 190872 [COMMIT] Transaction id 680
+LSN 190844 [COMMIT] Transaction id 677
+LSN 190816 [COMMIT] Transaction id 674
+LSN 190788 [COMMIT] Transaction id 672
+LSN 190760 [COMMIT] Transaction id 671
+LSN 190732 [COMMIT] Transaction id 669
+LSN 190704 [COMMIT] Transaction id 668
+LSN 190676 [COMMIT] Transaction id 667
+LSN 190648 [COMMIT] Transaction id 666
+LSN 190620 [COMMIT] Transaction id 665
+LSN 190592 [COMMIT] Transaction id 664
+LSN 190564 [COMMIT] Transaction id 663
+LSN 190536 [COMMIT] Transaction id 662
+LSN 190508 [COMMIT] Transaction id 661
+LSN 190480 [COMMIT] Transaction id 660
+LSN 190452 [COMMIT] Transaction id 659
+LSN 190424 [COMMIT] Transaction id 658
+LSN 190396 [COMMIT] Transaction id 657
+LSN 190368 [COMMIT] Transaction id 656
+LSN 190340 [COMMIT] Transaction id 655
+LSN 190312 [COMMIT] Transaction id 654
+LSN 190284 [COMMIT] Transaction id 653
+LSN 190256 [COMMIT] Transaction id 652
+LSN 190228 [COMMIT] Transaction id 651
+LSN 190200 [COMMIT] Transaction id 650
+LSN 190172 [COMMIT] Transaction id 649
+LSN 190144 [COMMIT] Transaction id 648
+LSN 190116 [COMMIT] Transaction id 647
+LSN 190088 [COMMIT] Transaction id 646
+LSN 190060 [COMMIT] Transaction id 645
+LSN 190032 [COMMIT] Transaction id 644
+LSN 190004 [COMMIT] Transaction id 643
+LSN 189976 [COMMIT] Transaction id 642
+LSN 189948 [COMMIT] Transaction id 641
+LSN 189920 [COMMIT] Transaction id 640
+LSN 189892 [COMMIT] Transaction id 639
+LSN 189864 [COMMIT] Transaction id 637
+LSN 189836 [COMMIT] Transaction id 638
+LSN 189808 [COMMIT] Transaction id 636
+LSN 189780 [COMMIT] Transaction id 635
+LSN 189752 [COMMIT] Transaction id 634
+LSN 189724 [COMMIT] Transaction id 633
+LSN 189696 [COMMIT] Transaction id 632
+LSN 189668 [COMMIT] Transaction id 631
+LSN 189640 [COMMIT] Transaction id 630
+LSN 189612 [COMMIT] Transaction id 629
+LSN 189584 [COMMIT] Transaction id 628
+LSN 189556 [COMMIT] Transaction id 627
+LSN 189528 [COMMIT] Transaction id 626
+LSN 189500 [COMMIT] Transaction id 625
+LSN 189472 [COMMIT] Transaction id 624
+LSN 189444 [COMMIT] Transaction id 623
+LSN 189416 [COMMIT] Transaction id 622
+LSN 189388 [COMMIT] Transaction id 621
+LSN 189360 [COMMIT] Transaction id 620
+LSN 189332 [COMMIT] Transaction id 618
+LSN 189304 [COMMIT] Transaction id 616
+LSN 189276 [COMMIT] Transaction id 617
+LSN 189248 [COMMIT] Transaction id 615
+LSN 189220 [COMMIT] Transaction id 614
+LSN 189192 [COMMIT] Transaction id 613
+LSN 189164 [COMMIT] Transaction id 612
+LSN 189136 [COMMIT] Transaction id 611
+LSN 189108 [COMMIT] Transaction id 610
+LSN 189080 [COMMIT] Transaction id 609
+LSN 189052 [COMMIT] Transaction id 608
+LSN 189024 [COMMIT] Transaction id 607
+LSN 188996 [COMMIT] Transaction id 606
+LSN 188968 [COMMIT] Transaction id 605
+LSN 188940 [COMMIT] Transaction id 604
+LSN 188912 [COMMIT] Transaction id 603
+LSN 188884 [COMMIT] Transaction id 602
+LSN 188856 [COMMIT] Transaction id 601
+LSN 188828 [COMMIT] Transaction id 600
+LSN 188800 [COMMIT] Transaction id 599
+LSN 188772 [COMMIT] Transaction id 598
+LSN 188744 [COMMIT] Transaction id 597
+LSN 188716 [COMMIT] Transaction id 596
+LSN 188688 [COMMIT] Transaction id 595
+LSN 188660 [COMMIT] Transaction id 594
+LSN 188632 [COMMIT] Transaction id 593
+LSN 188604 [COMMIT] Transaction id 592
+LSN 188576 [COMMIT] Transaction id 591
+LSN 188548 [COMMIT] Transaction id 590
+LSN 188520 [COMMIT] Transaction id 589
+LSN 188492 [COMMIT] Transaction id 588
+LSN 188464 [COMMIT] Transaction id 587
+LSN 188436 [COMMIT] Transaction id 586
+LSN 188408 [COMMIT] Transaction id 585
+LSN 188380 [COMMIT] Transaction id 584
+LSN 188352 [COMMIT] Transaction id 583
+LSN 188324 [COMMIT] Transaction id 582
+LSN 188296 [COMMIT] Transaction id 581
+LSN 188268 [COMMIT] Transaction id 580
+LSN 188240 [COMMIT] Transaction id 579
+LSN 188212 [COMMIT] Transaction id 578
+LSN 188184 [COMMIT] Transaction id 577
+LSN 188156 [COMMIT] Transaction id 576
+LSN 188128 [COMMIT] Transaction id 575
+LSN 188100 [COMMIT] Transaction id 574
+LSN 188072 [COMMIT] Transaction id 573
+LSN 188044 [COMMIT] Transaction id 572
+LSN 188016 [COMMIT] Transaction id 726
+LSN 187988 [COMMIT] Transaction id 729
+LSN 187960 [COMMIT] Transaction id 552
+LSN 187932 [COMMIT] Transaction id 570
+LSN 187904 [COMMIT] Transaction id 569
+LSN 187876 [COMMIT] Transaction id 560
+LSN 187848 [COMMIT] Transaction id 563
+LSN 187820 [COMMIT] Transaction id 565
+LSN 187792 [COMMIT] Transaction id 556
+LSN 187764 [COMMIT] Transaction id 571
+LSN 187736 [COMMIT] Transaction id 562
+LSN 187708 [COMMIT] Transaction id 567
+LSN 187680 [COMMIT] Transaction id 558
+LSN 187652 [COMMIT] Transaction id 554
+LSN 187624 [COMMIT] Transaction id 550
+LSN 187596 [COMMIT] Transaction id 568
+LSN 187568 [COMMIT] Transaction id 566
+LSN 187540 [COMMIT] Transaction id 564
+LSN 187512 [COMMIT] Transaction id 561
+LSN 187484 [COMMIT] Transaction id 559
+LSN 187456 [COMMIT] Transaction id 557
+LSN 187428 [COMMIT] Transaction id 555
+LSN 187400 [COMMIT] Transaction id 553
+LSN 187372 [COMMIT] Transaction id 551
+LSN 187344 [COMMIT] Transaction id 549
+LSN 187316 [COMMIT] Transaction id 548
+LSN 187288 [COMMIT] Transaction id 547
+LSN 187260 [COMMIT] Transaction id 315
+LSN 187232 [COMMIT] Transaction id 546
+LSN 187204 [COMMIT] Transaction id 545
+LSN 187176 [COMMIT] Transaction id 539
+LSN 187148 [COMMIT] Transaction id 544
+LSN 187120 [COMMIT] Transaction id 541
+LSN 187092 [COMMIT] Transaction id 537
+LSN 187064 [COMMIT] Transaction id 543
+LSN 187036 [COMMIT] Transaction id 542
+LSN 187008 [COMMIT] Transaction id 540
+LSN 186980 [COMMIT] Transaction id 538
+LSN 186952 [COMMIT] Transaction id 536
+LSN 186924 [COMMIT] Transaction id 535
+LSN 186896 [COMMIT] Transaction id 534
+LSN 186868 [COMMIT] Transaction id 533
+LSN 186840 [COMMIT] Transaction id 532
+LSN 186812 [COMMIT] Transaction id 531
+LSN 186784 [COMMIT] Transaction id 530
+LSN 186756 [COMMIT] Transaction id 529
+LSN 186728 [COMMIT] Transaction id 528
+LSN 186700 [COMMIT] Transaction id 527
+LSN 186672 [COMMIT] Transaction id 526
+LSN 186644 [COMMIT] Transaction id 525
+LSN 186616 [COMMIT] Transaction id 524
+LSN 186588 [COMMIT] Transaction id 523
+LSN 186560 [COMMIT] Transaction id 507
+LSN 186532 [COMMIT] Transaction id 515
+LSN 186504 [COMMIT] Transaction id 519
+LSN 186476 [COMMIT] Transaction id 511
+LSN 186448 [COMMIT] Transaction id 521
+LSN 186420 [COMMIT] Transaction id 517
+LSN 186392 [COMMIT] Transaction id 513
+LSN 186364 [COMMIT] Transaction id 509
+LSN 186336 [COMMIT] Transaction id 505
+LSN 186308 [COMMIT] Transaction id 520
+LSN 186280 [COMMIT] Transaction id 522
+LSN 186252 [COMMIT] Transaction id 518
+LSN 186224 [COMMIT] Transaction id 516
+LSN 186196 [COMMIT] Transaction id 514
+LSN 186168 [COMMIT] Transaction id 512
+LSN 186140 [COMMIT] Transaction id 510
+LSN 186112 [COMMIT] Transaction id 508
+LSN 186084 [COMMIT] Transaction id 506
+LSN 186056 [COMMIT] Transaction id 503
+LSN 186028 [COMMIT] Transaction id 504
+LSN 186000 [COMMIT] Transaction id 502
+LSN 185972 [COMMIT] Transaction id 501
+LSN 185944 [COMMIT] Transaction id 500
+LSN 185916 [COMMIT] Transaction id 499
+LSN 185888 [COMMIT] Transaction id 498
+LSN 185860 [COMMIT] Transaction id 497
+LSN 185832 [COMMIT] Transaction id 496
+LSN 185804 [COMMIT] Transaction id 492
+LSN 185776 [COMMIT] Transaction id 494
+LSN 185748 [COMMIT] Transaction id 490
+LSN 185720 [COMMIT] Transaction id 495
+LSN 185692 [COMMIT] Transaction id 493
+LSN 185664 [COMMIT] Transaction id 491
+LSN 185636 [COMMIT] Transaction id 489
+LSN 185608 [COMMIT] Transaction id 488
+LSN 185580 [COMMIT] Transaction id 487
+LSN 185552 [COMMIT] Transaction id 483
+LSN 185524 [COMMIT] Transaction id 485
+LSN 185496 [COMMIT] Transaction id 486
+LSN 185468 [COMMIT] Transaction id 484
+LSN 185440 [COMMIT] Transaction id 482
+LSN 185412 [COMMIT] Transaction id 480
+LSN 185384 [COMMIT] Transaction id 481
+LSN 185356 [COMMIT] Transaction id 476
+LSN 185328 [COMMIT] Transaction id 478
+LSN 185300 [COMMIT] Transaction id 479
+LSN 185272 [COMMIT] Transaction id 477
+LSN 185244 [COMMIT] Transaction id 474
+LSN 185216 [COMMIT] Transaction id 475
+LSN 185188 [COMMIT] Transaction id 473
+LSN 185160 [COMMIT] Transaction id 472
+LSN 185132 [COMMIT] Transaction id 471
+LSN 185104 [COMMIT] Transaction id 470
+LSN 185076 [COMMIT] Transaction id 469
+LSN 185048 [COMMIT] Transaction id 468
+LSN 185020 [COMMIT] Transaction id 467
+LSN 184992 [COMMIT] Transaction id 466
+LSN 184964 [COMMIT] Transaction id 465
+LSN 184936 [COMMIT] Transaction id 464
+LSN 184908 [COMMIT] Transaction id 463
+LSN 184880 [COMMIT] Transaction id 462
+LSN 184852 [COMMIT] Transaction id 461
+LSN 184824 [COMMIT] Transaction id 460
+LSN 184796 [COMMIT] Transaction id 459
+LSN 184768 [COMMIT] Transaction id 458
+LSN 184740 [COMMIT] Transaction id 457
+LSN 184712 [COMMIT] Transaction id 456
+LSN 184684 [COMMIT] Transaction id 455
+LSN 184656 [COMMIT] Transaction id 454
+LSN 184628 [COMMIT] Transaction id 453
+LSN 184600 [COMMIT] Transaction id 452
+LSN 184572 [COMMIT] Transaction id 451
+LSN 184544 [COMMIT] Transaction id 450
+LSN 184516 [COMMIT] Transaction id 448
+LSN 184488 [COMMIT] Transaction id 449
+LSN 184460 [COMMIT] Transaction id 447
+LSN 184432 [COMMIT] Transaction id 446
+LSN 184404 [COMMIT] Transaction id 445
+LSN 184376 [COMMIT] Transaction id 442
+LSN 184348 [COMMIT] Transaction id 444
+LSN 184320 [COMMIT] Transaction id 443
+LSN 184292 [COMMIT] Transaction id 441
+LSN 184264 [COMMIT] Transaction id 440
+LSN 184236 [COMMIT] Transaction id 432
+LSN 184208 [COMMIT] Transaction id 436
+LSN 184180 [COMMIT] Transaction id 438
+LSN 184152 [COMMIT] Transaction id 434
+LSN 184124 [COMMIT] Transaction id 439
+LSN 184096 [COMMIT] Transaction id 437
+LSN 184068 [COMMIT] Transaction id 435
+LSN 184040 [COMMIT] Transaction id 433
+LSN 184012 [COMMIT] Transaction id 431
+LSN 183984 [COMMIT] Transaction id 430
+LSN 183956 [COMMIT] Transaction id 429
+LSN 183928 [COMMIT] Transaction id 427
+LSN 183900 [COMMIT] Transaction id 423
+LSN 183872 [COMMIT] Transaction id 419
+LSN 183844 [COMMIT] Transaction id 415
+LSN 183816 [COMMIT] Transaction id 425
+LSN 183788 [COMMIT] Transaction id 421
+LSN 183760 [COMMIT] Transaction id 417
+LSN 183732 [COMMIT] Transaction id 428
+LSN 183704 [COMMIT] Transaction id 426
+LSN 183676 [COMMIT] Transaction id 424
+LSN 183648 [COMMIT] Transaction id 422
+LSN 183620 [COMMIT] Transaction id 420
+LSN 183592 [COMMIT] Transaction id 418
+LSN 183564 [COMMIT] Transaction id 416
+LSN 183536 [COMMIT] Transaction id 414
+LSN 183508 [COMMIT] Transaction id 413
+LSN 183480 [COMMIT] Transaction id 412
+LSN 183452 [COMMIT] Transaction id 242
+LSN 183424 [COMMIT] Transaction id 370
+LSN 183396 [COMMIT] Transaction id 99
+LSN 183368 [COMMIT] Transaction id 306
+LSN 183340 [COMMIT] Transaction id 177
+LSN 183312 [COMMIT] Transaction id 34
+LSN 183284 [COMMIT] Transaction id 338
+LSN 183256 [COMMIT] Transaction id 274
+LSN 183228 [COMMIT] Transaction id 210
+LSN 183200 [COMMIT] Transaction id 133
+LSN 183172 [COMMIT] Transaction id 67
+LSN 183144 [COMMIT] Transaction id 398
+LSN 183116 [COMMIT] Transaction id 354
+LSN 183088 [COMMIT] Transaction id 322
+LSN 183060 [COMMIT] Transaction id 290
+LSN 183032 [COMMIT] Transaction id 258
+LSN 183004 [COMMIT] Transaction id 226
+LSN 182976 [COMMIT] Transaction id 194
+LSN 182948 [COMMIT] Transaction id 149
+LSN 182920 [COMMIT] Transaction id 117
+LSN 182892 [COMMIT] Transaction id 83
+LSN 182864 [COMMIT] Transaction id 51
+LSN 182836 [COMMIT] Transaction id 406
+LSN 182808 [COMMIT] Transaction id 389
+LSN 182780 [COMMIT] Transaction id 378
+LSN 182752 [COMMIT] Transaction id 362
+LSN 182724 [COMMIT] Transaction id 346
+LSN 182696 [COMMIT] Transaction id 330
+LSN 182668 [COMMIT] Transaction id 314
+LSN 182640 [COMMIT] Transaction id 298
+LSN 182612 [COMMIT] Transaction id 282
+LSN 182584 [COMMIT] Transaction id 266
+LSN 182556 [COMMIT] Transaction id 250
+LSN 182528 [COMMIT] Transaction id 234
+LSN 182500 [COMMIT] Transaction id 218
+LSN 182472 [COMMIT] Transaction id 202
+LSN 182444 [COMMIT] Transaction id 185
+LSN 182416 [COMMIT] Transaction id 169
+LSN 182388 [COMMIT] Transaction id 157
+LSN 182360 [COMMIT] Transaction id 141
+LSN 182332 [COMMIT] Transaction id 125
+LSN 182304 [COMMIT] Transaction id 107
+LSN 182276 [COMMIT] Transaction id 91
+LSN 182248 [COMMIT] Transaction id 75
+LSN 182220 [COMMIT] Transaction id 59
+LSN 182192 [COMMIT] Transaction id 43
+LSN 182164 [COMMIT] Transaction id 410
+LSN 182136 [COMMIT] Transaction id 402
+LSN 182108 [COMMIT] Transaction id 393
+LSN 182080 [COMMIT] Transaction id 385
+LSN 182052 [COMMIT] Transaction id 374
+LSN 182024 [COMMIT] Transaction id 342
+LSN 181996 [COMMIT] Transaction id 358
+LSN 181968 [COMMIT] Transaction id 366
+LSN 181940 [COMMIT] Transaction id 350
+LSN 181912 [COMMIT] Transaction id 334
+LSN 181884 [COMMIT] Transaction id 326
+LSN 181856 [COMMIT] Transaction id 318
+LSN 181828 [COMMIT] Transaction id 310
+LSN 181800 [COMMIT] Transaction id 302
+LSN 181772 [COMMIT] Transaction id 294
+LSN 181744 [COMMIT] Transaction id 286
+LSN 181716 [COMMIT] Transaction id 278
+LSN 181688 [COMMIT] Transaction id 270
+LSN 181660 [COMMIT] Transaction id 262
+LSN 181632 [COMMIT] Transaction id 254
+LSN 181604 [COMMIT] Transaction id 246
+LSN 181576 [COMMIT] Transaction id 238
+LSN 181548 [COMMIT] Transaction id 230
+LSN 181520 [COMMIT] Transaction id 222
+LSN 181492 [COMMIT] Transaction id 214
+LSN 181464 [COMMIT] Transaction id 206
+LSN 181436 [COMMIT] Transaction id 198
+LSN 181408 [COMMIT] Transaction id 189
+LSN 181380 [COMMIT] Transaction id 181
+LSN 181352 [COMMIT] Transaction id 173
+LSN 181324 [COMMIT] Transaction id 165
+LSN 181296 [COMMIT] Transaction id 161
+LSN 181268 [COMMIT] Transaction id 153
+LSN 181240 [COMMIT] Transaction id 145
+LSN 181212 [COMMIT] Transaction id 137
+LSN 181184 [COMMIT] Transaction id 129
+LSN 181156 [COMMIT] Transaction id 121
+LSN 181128 [COMMIT] Transaction id 111
+LSN 181100 [COMMIT] Transaction id 103
+LSN 181072 [COMMIT] Transaction id 95
+LSN 181044 [COMMIT] Transaction id 87
+LSN 181016 [COMMIT] Transaction id 79
+LSN 180988 [COMMIT] Transaction id 71
+LSN 180960 [COMMIT] Transaction id 63
+LSN 180932 [COMMIT] Transaction id 47
+LSN 180904 [COMMIT] Transaction id 55
+LSN 180876 [COMMIT] Transaction id 38
+LSN 180848 [COMMIT] Transaction id 30
+LSN 180820 [COMMIT] Transaction id 411
+LSN 180792 [COMMIT] Transaction id 408
+LSN 180764 [COMMIT] Transaction id 404
+LSN 180736 [COMMIT] Transaction id 400
+LSN 180708 [COMMIT] Transaction id 396
+LSN 180680 [COMMIT] Transaction id 391
+LSN 180652 [COMMIT] Transaction id 387
+LSN 180624 [COMMIT] Transaction id 383
+LSN 180596 [COMMIT] Transaction id 380
+LSN 180568 [COMMIT] Transaction id 376
+LSN 180540 [COMMIT] Transaction id 372
+LSN 180512 [COMMIT] Transaction id 368
+LSN 180484 [COMMIT] Transaction id 364
+LSN 180456 [COMMIT] Transaction id 360
+LSN 180428 [COMMIT] Transaction id 356
+LSN 180400 [COMMIT] Transaction id 352
+LSN 180372 [COMMIT] Transaction id 348
+LSN 180344 [COMMIT] Transaction id 344
+LSN 180316 [COMMIT] Transaction id 340
+LSN 180288 [COMMIT] Transaction id 336
+LSN 180260 [COMMIT] Transaction id 332
+LSN 180232 [COMMIT] Transaction id 328
+LSN 180204 [COMMIT] Transaction id 324
+LSN 180176 [COMMIT] Transaction id 320
+LSN 180148 [COMMIT] Transaction id 316
+LSN 180120 [COMMIT] Transaction id 312
+LSN 180092 [COMMIT] Transaction id 308
+LSN 180064 [COMMIT] Transaction id 304
+LSN 180036 [COMMIT] Transaction id 300
+LSN 180008 [COMMIT] Transaction id 296
+LSN 179980 [COMMIT] Transaction id 292
+LSN 179952 [COMMIT] Transaction id 288
+LSN 179924 [COMMIT] Transaction id 284
+LSN 179896 [COMMIT] Transaction id 280
+LSN 179868 [COMMIT] Transaction id 276
+LSN 179840 [COMMIT] Transaction id 272
+LSN 179812 [COMMIT] Transaction id 268
+LSN 179784 [COMMIT] Transaction id 264
+LSN 179756 [COMMIT] Transaction id 260
+LSN 179728 [COMMIT] Transaction id 256
+LSN 179700 [COMMIT] Transaction id 252
+LSN 179672 [COMMIT] Transaction id 248
+LSN 179644 [COMMIT] Transaction id 244
+LSN 179616 [COMMIT] Transaction id 240
+LSN 179588 [COMMIT] Transaction id 236
+LSN 179560 [COMMIT] Transaction id 232
+LSN 179532 [COMMIT] Transaction id 228
+LSN 179504 [COMMIT] Transaction id 224
+LSN 179476 [COMMIT] Transaction id 220
+LSN 179448 [COMMIT] Transaction id 216
+LSN 179420 [COMMIT] Transaction id 212
+LSN 179392 [COMMIT] Transaction id 208
+LSN 179364 [COMMIT] Transaction id 204
+LSN 179336 [COMMIT] Transaction id 200
+LSN 179308 [COMMIT] Transaction id 196
+LSN 179280 [COMMIT] Transaction id 191
+LSN 179252 [COMMIT] Transaction id 187
+LSN 179224 [COMMIT] Transaction id 183
+LSN 179196 [COMMIT] Transaction id 179
+LSN 179168 [COMMIT] Transaction id 175
+LSN 179140 [COMMIT] Transaction id 171
+LSN 179112 [COMMIT] Transaction id 167
+LSN 179084 [COMMIT] Transaction id 163
+LSN 179056 [COMMIT] Transaction id 159
+LSN 179028 [COMMIT] Transaction id 155
+LSN 179000 [COMMIT] Transaction id 151
+LSN 178972 [COMMIT] Transaction id 147
+LSN 178944 [COMMIT] Transaction id 143
+LSN 178916 [COMMIT] Transaction id 127
+LSN 178888 [COMMIT] Transaction id 135
+LSN 178860 [COMMIT] Transaction id 139
+LSN 178832 [COMMIT] Transaction id 131
+LSN 178804 [COMMIT] Transaction id 123
+LSN 178776 [COMMIT] Transaction id 119
+LSN 178748 [COMMIT] Transaction id 114
+LSN 178720 [COMMIT] Transaction id 109
+LSN 178692 [COMMIT] Transaction id 105
+LSN 178664 [COMMIT] Transaction id 101
+LSN 178636 [COMMIT] Transaction id 97
+LSN 178608 [COMMIT] Transaction id 93
+LSN 178580 [COMMIT] Transaction id 89
+LSN 178552 [COMMIT] Transaction id 85
+LSN 178524 [COMMIT] Transaction id 81
+LSN 178496 [COMMIT] Transaction id 77
+LSN 178468 [COMMIT] Transaction id 73
+LSN 178440 [COMMIT] Transaction id 69
+LSN 178412 [COMMIT] Transaction id 65
+LSN 178384 [COMMIT] Transaction id 61
+LSN 178356 [COMMIT] Transaction id 57
+LSN 178328 [COMMIT] Transaction id 53
+LSN 178300 [COMMIT] Transaction id 49
+LSN 178272 [COMMIT] Transaction id 45
+LSN 178244 [COMMIT] Transaction id 40
+LSN 178216 [COMMIT] Transaction id 36
+LSN 178188 [COMMIT] Transaction id 32
+LSN 178160 [COMMIT] Transaction id 28
+LSN 178132 [COMMIT] Transaction id 409
+LSN 178104 [COMMIT] Transaction id 407
+LSN 178076 [COMMIT] Transaction id 405
+LSN 178048 [COMMIT] Transaction id 403
+LSN 178020 [COMMIT] Transaction id 401
+LSN 177992 [COMMIT] Transaction id 399
+LSN 177964 [COMMIT] Transaction id 397
+LSN 177936 [COMMIT] Transaction id 395
+LSN 177908 [COMMIT] Transaction id 394
+LSN 177880 [COMMIT] Transaction id 392
+LSN 177852 [COMMIT] Transaction id 390
+LSN 177824 [COMMIT] Transaction id 388
+LSN 177796 [COMMIT] Transaction id 386
+LSN 177768 [COMMIT] Transaction id 384
+LSN 177740 [COMMIT] Transaction id 382
+LSN 177712 [COMMIT] Transaction id 381
+LSN 177684 [COMMIT] Transaction id 379
+LSN 177656 [COMMIT] Transaction id 377
+LSN 177628 [COMMIT] Transaction id 375
+LSN 177600 [COMMIT] Transaction id 373
+LSN 177572 [COMMIT] Transaction id 371
+LSN 177544 [COMMIT] Transaction id 369
+LSN 177516 [COMMIT] Transaction id 367
+LSN 177488 [COMMIT] Transaction id 365
+LSN 177460 [COMMIT] Transaction id 363
+LSN 177432 [COMMIT] Transaction id 361
+LSN 177404 [COMMIT] Transaction id 359
+LSN 177376 [COMMIT] Transaction id 357
+LSN 177348 [COMMIT] Transaction id 355
+LSN 177320 [COMMIT] Transaction id 353
+LSN 177292 [COMMIT] Transaction id 351
+LSN 177264 [COMMIT] Transaction id 349
+LSN 177236 [COMMIT] Transaction id 347
+LSN 177208 [COMMIT] Transaction id 345
+LSN 177180 [COMMIT] Transaction id 343
+LSN 177152 [COMMIT] Transaction id 341
+LSN 177124 [COMMIT] Transaction id 339
+LSN 177096 [COMMIT] Transaction id 337
+LSN 177068 [COMMIT] Transaction id 335
+LSN 177040 [COMMIT] Transaction id 333
+LSN 177012 [COMMIT] Transaction id 331
+LSN 176984 [COMMIT] Transaction id 329
+LSN 176956 [COMMIT] Transaction id 327
+LSN 176928 [COMMIT] Transaction id 325
+LSN 176900 [COMMIT] Transaction id 321
+LSN 176872 [COMMIT] Transaction id 323
+LSN 176844 [COMMIT] Transaction id 319
+LSN 176816 [COMMIT] Transaction id 317
+LSN 176788 [COMMIT] Transaction id 313
+LSN 176760 [COMMIT] Transaction id 311
+LSN 176732 [COMMIT] Transaction id 309
+LSN 176704 [COMMIT] Transaction id 307
+LSN 176676 [COMMIT] Transaction id 305
+LSN 176648 [COMMIT] Transaction id 303
+LSN 176620 [COMMIT] Transaction id 301
+LSN 176592 [COMMIT] Transaction id 267
+LSN 176564 [COMMIT] Transaction id 299
+LSN 176536 [COMMIT] Transaction id 235
+LSN 176508 [COMMIT] Transaction id 283
+LSN 176480 [COMMIT] Transaction id 251
+LSN 176452 [COMMIT] Transaction id 219
+LSN 176424 [COMMIT] Transaction id 291
+LSN 176396 [COMMIT] Transaction id 275
+LSN 176368 [COMMIT] Transaction id 259
+LSN 176340 [COMMIT] Transaction id 243
+LSN 176312 [COMMIT] Transaction id 227
+LSN 176284 [COMMIT] Transaction id 211
+LSN 176256 [COMMIT] Transaction id 295
+LSN 176228 [COMMIT] Transaction id 287
+LSN 176200 [COMMIT] Transaction id 279
+LSN 176172 [COMMIT] Transaction id 271
+LSN 176144 [COMMIT] Transaction id 263
+LSN 176116 [COMMIT] Transaction id 255
+LSN 176088 [COMMIT] Transaction id 247
+LSN 176060 [COMMIT] Transaction id 239
+LSN 176032 [COMMIT] Transaction id 231
+LSN 176004 [COMMIT] Transaction id 223
+LSN 175976 [COMMIT] Transaction id 215
+LSN 175948 [COMMIT] Transaction id 207
+LSN 175920 [COMMIT] Transaction id 297
+LSN 175892 [COMMIT] Transaction id 293
+LSN 175864 [COMMIT] Transaction id 289
+LSN 175836 [COMMIT] Transaction id 285
+LSN 175808 [COMMIT] Transaction id 281
+LSN 175780 [COMMIT] Transaction id 277
+LSN 175752 [COMMIT] Transaction id 273
+LSN 175724 [COMMIT] Transaction id 269
+LSN 175696 [COMMIT] Transaction id 265
+LSN 175668 [COMMIT] Transaction id 261
+LSN 175640 [COMMIT] Transaction id 257
+LSN 175612 [COMMIT] Transaction id 253
+LSN 175584 [COMMIT] Transaction id 249
+LSN 175556 [COMMIT] Transaction id 245
+LSN 175528 [COMMIT] Transaction id 241
+LSN 175500 [COMMIT] Transaction id 237
+LSN 175472 [COMMIT] Transaction id 233
+LSN 175444 [COMMIT] Transaction id 229
+LSN 175416 [COMMIT] Transaction id 225
+LSN 175388 [COMMIT] Transaction id 221
+LSN 175360 [COMMIT] Transaction id 217
+LSN 175332 [COMMIT] Transaction id 213
+LSN 175304 [COMMIT] Transaction id 209
+LSN 175276 [COMMIT] Transaction id 205
+LSN 175248 [COMMIT] Transaction id 203
+LSN 175220 [COMMIT] Transaction id 201
+LSN 175192 [COMMIT] Transaction id 199
+LSN 175164 [COMMIT] Transaction id 197
+LSN 175136 [COMMIT] Transaction id 195
+LSN 175108 [COMMIT] Transaction id 193
+LSN 175080 [COMMIT] Transaction id 192
+LSN 175052 [COMMIT] Transaction id 190
+LSN 175024 [COMMIT] Transaction id 188
+LSN 174996 [COMMIT] Transaction id 158
+LSN 174968 [COMMIT] Transaction id 174
+LSN 174940 [COMMIT] Transaction id 182
+LSN 174912 [COMMIT] Transaction id 166
+LSN 174884 [COMMIT] Transaction id 150
+LSN 174856 [COMMIT] Transaction id 186
+LSN 174828 [COMMIT] Transaction id 178
+LSN 174800 [COMMIT] Transaction id 170
+LSN 174772 [COMMIT] Transaction id 162
+LSN 174744 [COMMIT] Transaction id 154
+LSN 174716 [COMMIT] Transaction id 146
+LSN 174688 [COMMIT] Transaction id 184
+LSN 174660 [COMMIT] Transaction id 180
+LSN 174632 [COMMIT] Transaction id 176
+LSN 174604 [COMMIT] Transaction id 172
+LSN 174576 [COMMIT] Transaction id 168
+LSN 174548 [COMMIT] Transaction id 164
+LSN 174520 [COMMIT] Transaction id 160
+LSN 174492 [COMMIT] Transaction id 156
+LSN 174464 [COMMIT] Transaction id 152
+LSN 174436 [COMMIT] Transaction id 148
+LSN 174408 [COMMIT] Transaction id 144
+LSN 174380 [COMMIT] Transaction id 142
+LSN 174352 [COMMIT] Transaction id 140
+LSN 174324 [COMMIT] Transaction id 138
+LSN 174296 [COMMIT] Transaction id 136
+LSN 174268 [COMMIT] Transaction id 134
+LSN 174240 [COMMIT] Transaction id 132
+LSN 174212 [COMMIT] Transaction id 130
+LSN 174184 [COMMIT] Transaction id 128
+LSN 174156 [COMMIT] Transaction id 126
+LSN 174128 [COMMIT] Transaction id 124
+LSN 174100 [COMMIT] Transaction id 122
+LSN 174072 [COMMIT] Transaction id 120
+LSN 174044 [COMMIT] Transaction id 118
+LSN 174016 [COMMIT] Transaction id 116
+LSN 173988 [COMMIT] Transaction id 110
+LSN 173960 [COMMIT] Transaction id 113
+LSN 173932 [COMMIT] Transaction id 115
+LSN 173904 [COMMIT] Transaction id 112
+LSN 173876 [COMMIT] Transaction id 108
+LSN 173848 [COMMIT] Transaction id 106
+LSN 173820 [COMMIT] Transaction id 104
+LSN 173792 [COMMIT] Transaction id 102
+LSN 173764 [COMMIT] Transaction id 94
+LSN 173736 [COMMIT] Transaction id 98
+LSN 173708 [COMMIT] Transaction id 100
+LSN 173680 [COMMIT] Transaction id 96
+LSN 173652 [COMMIT] Transaction id 92
+LSN 173624 [COMMIT] Transaction id 90
+LSN 173596 [COMMIT] Transaction id 88
+LSN 173568 [COMMIT] Transaction id 86
+LSN 173540 [COMMIT] Transaction id 84
+LSN 173512 [COMMIT] Transaction id 82
+LSN 173484 [COMMIT] Transaction id 80
+LSN 173456 [COMMIT] Transaction id 78
+LSN 173428 [COMMIT] Transaction id 76
+LSN 173400 [COMMIT] Transaction id 74
+LSN 173372 [COMMIT] Transaction id 72
+LSN 173344 [COMMIT] Transaction id 70
+LSN 173316 [COMMIT] Transaction id 68
+LSN 173288 [COMMIT] Transaction id 66
+LSN 173260 [COMMIT] Transaction id 64
+LSN 173232 [COMMIT] Transaction id 62
+LSN 173204 [COMMIT] Transaction id 60
+LSN 173176 [COMMIT] Transaction id 58
+LSN 173148 [COMMIT] Transaction id 56
+LSN 173120 [COMMIT] Transaction id 54
+LSN 173092 [COMMIT] Transaction id 52
+LSN 173064 [COMMIT] Transaction id 50
+LSN 173036 [COMMIT] Transaction id 48
+LSN 138448 [COMMIT] Transaction id 46
+LSN 138420 [COMMIT] Transaction id 44
+LSN 138104 [COMMIT] Transaction id 42
+LSN 138076 [COMMIT] Transaction id 41
+LSN 138048 [COMMIT] Transaction id 39
+LSN 138020 [COMMIT] Transaction id 37
+LSN 137992 [COMMIT] Transaction id 35
+LSN 137964 [COMMIT] Transaction id 33
+LSN 137936 [COMMIT] Transaction id 31
+LSN 137908 [COMMIT] Transaction id 29
+LSN 137880 [COMMIT] Transaction id 27
+LSN 137852 [COMMIT] Transaction id 26
+LSN 137824 [COMMIT] Transaction id 10
+LSN 137796 [COMMIT] Transaction id 18
+LSN 137768 [COMMIT] Transaction id 22
+LSN 137740 [COMMIT] Transaction id 14
+LSN 137712 [COMMIT] Transaction id 24
+LSN 137684 [COMMIT] Transaction id 20
+LSN 109432 [BEGIN] Transaction id 1000
+LSN 109404 [BEGIN] Transaction id 999
+LSN 109376 [BEGIN] Transaction id 998
+LSN 109348 [BEGIN] Transaction id 997
+LSN 109320 [BEGIN] Transaction id 996
+LSN 109292 [BEGIN] Transaction id 995
+LSN 109264 [BEGIN] Transaction id 994
+LSN 109236 [BEGIN] Transaction id 993
+LSN 109208 [BEGIN] Transaction id 992
+LSN 109180 [BEGIN] Transaction id 991
+LSN 109152 [BEGIN] Transaction id 990
+LSN 109124 [BEGIN] Transaction id 989
+LSN 109096 [BEGIN] Transaction id 988
+LSN 109068 [BEGIN] Transaction id 987
+LSN 109040 [BEGIN] Transaction id 986
+LSN 109012 [BEGIN] Transaction id 985
+LSN 108984 [BEGIN] Transaction id 984
+LSN 108956 [BEGIN] Transaction id 983
+LSN 108928 [BEGIN] Transaction id 982
+LSN 108900 [BEGIN] Transaction id 981
+LSN 108872 [BEGIN] Transaction id 980
+LSN 108844 [BEGIN] Transaction id 979
+LSN 108816 [BEGIN] Transaction id 978
+LSN 108788 [BEGIN] Transaction id 977
+LSN 108760 [BEGIN] Transaction id 976
+LSN 108732 [BEGIN] Transaction id 975
+LSN 108704 [BEGIN] Transaction id 974
+LSN 108676 [BEGIN] Transaction id 973
+LSN 108648 [BEGIN] Transaction id 972
+LSN 108620 [BEGIN] Transaction id 971
+LSN 108592 [BEGIN] Transaction id 970
+LSN 108564 [BEGIN] Transaction id 969
+LSN 108536 [BEGIN] Transaction id 968
+LSN 108508 [BEGIN] Transaction id 967
+LSN 108480 [BEGIN] Transaction id 966
+LSN 108452 [BEGIN] Transaction id 965
+LSN 108424 [BEGIN] Transaction id 964
+LSN 108396 [BEGIN] Transaction id 963
+LSN 108368 [BEGIN] Transaction id 962
+LSN 108340 [BEGIN] Transaction id 961
+LSN 108312 [BEGIN] Transaction id 960
+LSN 108284 [BEGIN] Transaction id 959
+LSN 108256 [BEGIN] Transaction id 958
+LSN 108228 [BEGIN] Transaction id 957
+LSN 108200 [BEGIN] Transaction id 956
+LSN 108172 [BEGIN] Transaction id 955
+LSN 108144 [BEGIN] Transaction id 954
+LSN 108116 [BEGIN] Transaction id 953
+LSN 108088 [BEGIN] Transaction id 952
+LSN 108060 [BEGIN] Transaction id 951
+LSN 108032 [BEGIN] Transaction id 950
+LSN 108004 [BEGIN] Transaction id 949
+LSN 107976 [BEGIN] Transaction id 948
+LSN 107948 [BEGIN] Transaction id 947
+LSN 107920 [BEGIN] Transaction id 946
+LSN 107892 [BEGIN] Transaction id 945
+LSN 107864 [BEGIN] Transaction id 944
+LSN 107836 [BEGIN] Transaction id 943
+LSN 107808 [BEGIN] Transaction id 942
+LSN 107780 [BEGIN] Transaction id 941
+LSN 107752 [BEGIN] Transaction id 940
+LSN 107724 [BEGIN] Transaction id 939
+LSN 107696 [BEGIN] Transaction id 938
+LSN 107668 [BEGIN] Transaction id 937
+LSN 107640 [BEGIN] Transaction id 936
+LSN 107612 [BEGIN] Transaction id 935
+LSN 107584 [BEGIN] Transaction id 934
+LSN 107556 [BEGIN] Transaction id 933
+LSN 107528 [BEGIN] Transaction id 932
+LSN 107500 [BEGIN] Transaction id 931
+LSN 107472 [BEGIN] Transaction id 930
+LSN 107444 [BEGIN] Transaction id 929
+LSN 107416 [BEGIN] Transaction id 928
+LSN 107388 [BEGIN] Transaction id 927
+LSN 107360 [BEGIN] Transaction id 926
+LSN 107332 [BEGIN] Transaction id 925
+LSN 107304 [BEGIN] Transaction id 924
+LSN 107276 [BEGIN] Transaction id 923
+LSN 107248 [BEGIN] Transaction id 922
+LSN 107220 [BEGIN] Transaction id 921
+LSN 107192 [BEGIN] Transaction id 920
+LSN 107164 [BEGIN] Transaction id 919
+LSN 107136 [BEGIN] Transaction id 918
+LSN 107108 [BEGIN] Transaction id 917
+LSN 107080 [BEGIN] Transaction id 916
+LSN 107052 [BEGIN] Transaction id 915
+LSN 107024 [BEGIN] Transaction id 914
+LSN 106996 [BEGIN] Transaction id 913
+LSN 106968 [BEGIN] Transaction id 912
+LSN 106940 [BEGIN] Transaction id 911
+LSN 106912 [BEGIN] Transaction id 910
+LSN 106884 [BEGIN] Transaction id 909
+LSN 106856 [BEGIN] Transaction id 908
+LSN 106828 [BEGIN] Transaction id 907
+LSN 106800 [BEGIN] Transaction id 906
+LSN 106772 [BEGIN] Transaction id 905
+LSN 106744 [BEGIN] Transaction id 904
+LSN 106716 [BEGIN] Transaction id 903
+LSN 106688 [BEGIN] Transaction id 902
+LSN 106660 [BEGIN] Transaction id 901
+LSN 106632 [BEGIN] Transaction id 900
+LSN 106604 [BEGIN] Transaction id 899
+LSN 106576 [BEGIN] Transaction id 898
+LSN 106548 [BEGIN] Transaction id 897
+LSN 106520 [BEGIN] Transaction id 896
+LSN 106492 [BEGIN] Transaction id 895
+LSN 106464 [BEGIN] Transaction id 894
+LSN 106436 [BEGIN] Transaction id 893
+LSN 106408 [BEGIN] Transaction id 892
+LSN 106380 [BEGIN] Transaction id 891
+LSN 106352 [BEGIN] Transaction id 890
+LSN 106324 [BEGIN] Transaction id 889
+LSN 106296 [BEGIN] Transaction id 888
+LSN 106268 [BEGIN] Transaction id 887
+LSN 106240 [BEGIN] Transaction id 886
+LSN 106212 [BEGIN] Transaction id 885
+LSN 106184 [BEGIN] Transaction id 884
+LSN 106156 [BEGIN] Transaction id 883
+LSN 106128 [BEGIN] Transaction id 882
+LSN 106100 [BEGIN] Transaction id 881
+LSN 106072 [BEGIN] Transaction id 880
+LSN 106044 [BEGIN] Transaction id 879
+LSN 106016 [BEGIN] Transaction id 878
+LSN 105988 [BEGIN] Transaction id 877
+LSN 105960 [BEGIN] Transaction id 876
+LSN 105932 [BEGIN] Transaction id 875
+LSN 105904 [BEGIN] Transaction id 874
+LSN 105876 [BEGIN] Transaction id 873
+LSN 105848 [BEGIN] Transaction id 872
+LSN 105820 [BEGIN] Transaction id 871
+LSN 105792 [BEGIN] Transaction id 870
+LSN 105764 [BEGIN] Transaction id 869
+LSN 105736 [BEGIN] Transaction id 868
+LSN 105708 [BEGIN] Transaction id 867
+LSN 105680 [BEGIN] Transaction id 866
+LSN 105652 [BEGIN] Transaction id 865
+LSN 105624 [BEGIN] Transaction id 864
+LSN 105596 [BEGIN] Transaction id 863
+LSN 105568 [BEGIN] Transaction id 862
+LSN 105540 [BEGIN] Transaction id 861
+LSN 105512 [BEGIN] Transaction id 860
+LSN 105484 [BEGIN] Transaction id 859
+LSN 105456 [BEGIN] Transaction id 858
+LSN 105428 [BEGIN] Transaction id 857
+LSN 105400 [BEGIN] Transaction id 856
+LSN 105372 [BEGIN] Transaction id 855
+LSN 105344 [BEGIN] Transaction id 854
+LSN 105316 [BEGIN] Transaction id 853
+LSN 105288 [BEGIN] Transaction id 852
+LSN 105260 [BEGIN] Transaction id 851
+LSN 105232 [BEGIN] Transaction id 850
+LSN 105204 [BEGIN] Transaction id 849
+LSN 105176 [BEGIN] Transaction id 848
+LSN 105148 [BEGIN] Transaction id 847
+LSN 105120 [BEGIN] Transaction id 846
+LSN 105092 [BEGIN] Transaction id 845
+LSN 105064 [BEGIN] Transaction id 844
+LSN 105036 [BEGIN] Transaction id 843
+LSN 105008 [BEGIN] Transaction id 842
+LSN 104980 [BEGIN] Transaction id 841
+LSN 104952 [BEGIN] Transaction id 840
+LSN 104924 [BEGIN] Transaction id 839
+LSN 104896 [BEGIN] Transaction id 838
+LSN 104868 [BEGIN] Transaction id 837
+LSN 104840 [BEGIN] Transaction id 836
+LSN 104812 [BEGIN] Transaction id 835
+LSN 104784 [BEGIN] Transaction id 834
+LSN 104756 [BEGIN] Transaction id 833
+LSN 104728 [BEGIN] Transaction id 832
+LSN 104700 [BEGIN] Transaction id 831
+LSN 104672 [BEGIN] Transaction id 830
+LSN 104644 [BEGIN] Transaction id 829
+LSN 104616 [BEGIN] Transaction id 828
+LSN 104588 [BEGIN] Transaction id 827
+LSN 104560 [BEGIN] Transaction id 826
+LSN 104532 [BEGIN] Transaction id 825
+LSN 104504 [BEGIN] Transaction id 824
+LSN 104476 [BEGIN] Transaction id 823
+LSN 104448 [BEGIN] Transaction id 822
+LSN 104420 [BEGIN] Transaction id 821
+LSN 104392 [BEGIN] Transaction id 820
+LSN 104364 [BEGIN] Transaction id 819
+LSN 104336 [BEGIN] Transaction id 818
+LSN 104308 [BEGIN] Transaction id 817
+LSN 104280 [BEGIN] Transaction id 816
+LSN 104252 [BEGIN] Transaction id 815
+LSN 104224 [BEGIN] Transaction id 814
+LSN 104196 [BEGIN] Transaction id 813
+LSN 104168 [BEGIN] Transaction id 812
+LSN 104140 [BEGIN] Transaction id 811
+LSN 104112 [BEGIN] Transaction id 810
+LSN 104084 [BEGIN] Transaction id 809
+LSN 104056 [BEGIN] Transaction id 808
+LSN 104028 [BEGIN] Transaction id 807
+LSN 104000 [BEGIN] Transaction id 806
+LSN 103972 [BEGIN] Transaction id 805
+LSN 103944 [BEGIN] Transaction id 804
+LSN 103916 [BEGIN] Transaction id 803
+LSN 103888 [BEGIN] Transaction id 802
+LSN 103860 [BEGIN] Transaction id 801
+LSN 103832 [BEGIN] Transaction id 800
+LSN 103804 [BEGIN] Transaction id 799
+LSN 103776 [BEGIN] Transaction id 798
+LSN 103748 [BEGIN] Transaction id 797
+LSN 103720 [BEGIN] Transaction id 796
+LSN 103692 [BEGIN] Transaction id 795
+LSN 103664 [BEGIN] Transaction id 794
+LSN 103636 [BEGIN] Transaction id 793
+LSN 103608 [BEGIN] Transaction id 792
+LSN 103580 [BEGIN] Transaction id 791
+LSN 103552 [BEGIN] Transaction id 790
+LSN 103524 [BEGIN] Transaction id 789
+LSN 103496 [BEGIN] Transaction id 788
+LSN 103468 [BEGIN] Transaction id 787
+LSN 103440 [BEGIN] Transaction id 786
+LSN 103412 [BEGIN] Transaction id 785
+LSN 103384 [BEGIN] Transaction id 784
+LSN 103356 [BEGIN] Transaction id 783
+LSN 103328 [BEGIN] Transaction id 782
+LSN 103300 [BEGIN] Transaction id 781
+LSN 103272 [BEGIN] Transaction id 780
+LSN 103244 [BEGIN] Transaction id 779
+LSN 103216 [BEGIN] Transaction id 778
+LSN 103188 [BEGIN] Transaction id 777
+LSN 103160 [BEGIN] Transaction id 776
+LSN 103132 [BEGIN] Transaction id 775
+LSN 103104 [BEGIN] Transaction id 774
+LSN 103076 [BEGIN] Transaction id 773
+LSN 103048 [BEGIN] Transaction id 772
+LSN 103020 [BEGIN] Transaction id 771
+LSN 102992 [BEGIN] Transaction id 770
+LSN 102964 [BEGIN] Transaction id 769
+LSN 102936 [BEGIN] Transaction id 768
+LSN 102908 [BEGIN] Transaction id 767
+LSN 102880 [BEGIN] Transaction id 766
+LSN 102852 [BEGIN] Transaction id 765
+LSN 102824 [BEGIN] Transaction id 764
+LSN 102796 [BEGIN] Transaction id 763
+LSN 102768 [BEGIN] Transaction id 762
+LSN 102740 [BEGIN] Transaction id 761
+LSN 102712 [BEGIN] Transaction id 760
+LSN 102684 [BEGIN] Transaction id 759
+LSN 102656 [BEGIN] Transaction id 758
+LSN 102628 [BEGIN] Transaction id 757
+LSN 102600 [BEGIN] Transaction id 756
+LSN 102572 [BEGIN] Transaction id 755
+LSN 102544 [BEGIN] Transaction id 754
+LSN 102516 [BEGIN] Transaction id 753
+LSN 102488 [BEGIN] Transaction id 752
+LSN 102460 [BEGIN] Transaction id 751
+LSN 102432 [BEGIN] Transaction id 750
+LSN 102404 [BEGIN] Transaction id 749
+LSN 102376 [BEGIN] Transaction id 748
+LSN 102348 [BEGIN] Transaction id 747
+LSN 102320 [BEGIN] Transaction id 746
+LSN 102292 [BEGIN] Transaction id 745
+LSN 102264 [BEGIN] Transaction id 744
+LSN 102236 [BEGIN] Transaction id 743
+LSN 102208 [BEGIN] Transaction id 742
+LSN 102180 [BEGIN] Transaction id 741
+LSN 102152 [BEGIN] Transaction id 740
+LSN 102124 [BEGIN] Transaction id 739
+LSN 102096 [BEGIN] Transaction id 738
+LSN 102068 [BEGIN] Transaction id 737
+LSN 102040 [BEGIN] Transaction id 736
+LSN 102012 [BEGIN] Transaction id 735
+LSN 101984 [BEGIN] Transaction id 734
+LSN 101956 [BEGIN] Transaction id 733
+LSN 101928 [BEGIN] Transaction id 732
+LSN 101900 [BEGIN] Transaction id 731
+LSN 101872 [BEGIN] Transaction id 730
+LSN 101844 [BEGIN] Transaction id 726
+LSN 101816 [BEGIN] Transaction id 729
+LSN 101788 [BEGIN] Transaction id 728
+LSN 101760 [BEGIN] Transaction id 727
+LSN 101732 [BEGIN] Transaction id 725
+LSN 101704 [BEGIN] Transaction id 724
+LSN 101676 [BEGIN] Transaction id 723
+LSN 101648 [BEGIN] Transaction id 722
+LSN 101620 [BEGIN] Transaction id 721
+LSN 101592 [BEGIN] Transaction id 720
+LSN 101564 [BEGIN] Transaction id 719
+LSN 101536 [BEGIN] Transaction id 718
+LSN 101508 [BEGIN] Transaction id 717
+LSN 101480 [BEGIN] Transaction id 716
+LSN 101452 [BEGIN] Transaction id 715
+LSN 101424 [BEGIN] Transaction id 714
+LSN 101396 [BEGIN] Transaction id 713
+LSN 101368 [BEGIN] Transaction id 712
+LSN 101340 [BEGIN] Transaction id 711
+LSN 101312 [BEGIN] Transaction id 710
+LSN 101284 [BEGIN] Transaction id 709
+LSN 101256 [BEGIN] Transaction id 708
+LSN 101228 [BEGIN] Transaction id 707
+LSN 101200 [BEGIN] Transaction id 706
+LSN 101172 [BEGIN] Transaction id 705
+LSN 101144 [BEGIN] Transaction id 704
+LSN 101116 [BEGIN] Transaction id 703
+LSN 101088 [BEGIN] Transaction id 702
+LSN 101060 [BEGIN] Transaction id 701
+LSN 101032 [BEGIN] Transaction id 700
+LSN 101004 [BEGIN] Transaction id 699
+LSN 100976 [BEGIN] Transaction id 698
+LSN 100948 [BEGIN] Transaction id 697
+LSN 100920 [BEGIN] Transaction id 696
+LSN 100892 [BEGIN] Transaction id 695
+LSN 100864 [BEGIN] Transaction id 694
+LSN 100836 [BEGIN] Transaction id 693
+LSN 100808 [BEGIN] Transaction id 692
+LSN 100780 [BEGIN] Transaction id 691
+LSN 100752 [BEGIN] Transaction id 690
+LSN 100724 [BEGIN] Transaction id 689
+LSN 100696 [BEGIN] Transaction id 688
+LSN 100668 [BEGIN] Transaction id 687
+LSN 100640 [BEGIN] Transaction id 686
+LSN 100612 [BEGIN] Transaction id 685
+LSN 100584 [BEGIN] Transaction id 684
+LSN 100556 [BEGIN] Transaction id 683
+LSN 100528 [BEGIN] Transaction id 682
+LSN 100500 [BEGIN] Transaction id 681
+LSN 100472 [BEGIN] Transaction id 680
+LSN 100444 [BEGIN] Transaction id 679
+LSN 100416 [BEGIN] Transaction id 678
+LSN 100388 [BEGIN] Transaction id 677
+LSN 100360 [BEGIN] Transaction id 676
+LSN 100332 [BEGIN] Transaction id 675
+LSN 100304 [BEGIN] Transaction id 674
+LSN 100276 [BEGIN] Transaction id 673
+LSN 100248 [BEGIN] Transaction id 672
+LSN 100220 [BEGIN] Transaction id 671
+LSN 100192 [BEGIN] Transaction id 670
+LSN 100164 [BEGIN] Transaction id 669
+LSN 100136 [BEGIN] Transaction id 668
+LSN 100108 [BEGIN] Transaction id 667
+LSN 100080 [BEGIN] Transaction id 666
+LSN 100052 [BEGIN] Transaction id 665
+LSN 100024 [BEGIN] Transaction id 664
+LSN 99996 [BEGIN] Transaction id 663
+LSN 99968 [BEGIN] Transaction id 662
+LSN 99940 [BEGIN] Transaction id 661
+LSN 99912 [BEGIN] Transaction id 660
+LSN 99884 [BEGIN] Transaction id 659
+LSN 99856 [BEGIN] Transaction id 658
+LSN 99828 [BEGIN] Transaction id 657
+LSN 99800 [BEGIN] Transaction id 656
+LSN 99772 [BEGIN] Transaction id 655
+LSN 99744 [BEGIN] Transaction id 654
+LSN 99716 [BEGIN] Transaction id 653
+LSN 99688 [BEGIN] Transaction id 652
+LSN 99660 [BEGIN] Transaction id 651
+LSN 99632 [BEGIN] Transaction id 650
+LSN 99604 [BEGIN] Transaction id 649
+LSN 99576 [BEGIN] Transaction id 648
+LSN 99548 [BEGIN] Transaction id 647
+LSN 99520 [BEGIN] Transaction id 646
+LSN 99492 [BEGIN] Transaction id 645
+LSN 99464 [BEGIN] Transaction id 644
+LSN 99436 [BEGIN] Transaction id 643
+LSN 99408 [BEGIN] Transaction id 642
+LSN 99380 [BEGIN] Transaction id 641
+LSN 99352 [BEGIN] Transaction id 640
+LSN 99324 [BEGIN] Transaction id 639
+LSN 99296 [BEGIN] Transaction id 638
+LSN 99268 [BEGIN] Transaction id 637
+LSN 99240 [BEGIN] Transaction id 636
+LSN 99212 [BEGIN] Transaction id 635
+LSN 99184 [BEGIN] Transaction id 634
+LSN 99156 [BEGIN] Transaction id 633
+LSN 99128 [BEGIN] Transaction id 632
+LSN 99100 [BEGIN] Transaction id 631
+LSN 99072 [BEGIN] Transaction id 630
+LSN 99044 [BEGIN] Transaction id 629
+LSN 99016 [BEGIN] Transaction id 628
+LSN 98988 [BEGIN] Transaction id 627
+LSN 98960 [BEGIN] Transaction id 626
+LSN 98932 [BEGIN] Transaction id 625
+LSN 98904 [BEGIN] Transaction id 624
+LSN 98876 [BEGIN] Transaction id 623
+LSN 98848 [BEGIN] Transaction id 622
+LSN 98820 [BEGIN] Transaction id 621
+LSN 98792 [BEGIN] Transaction id 620
+LSN 98764 [BEGIN] Transaction id 619
+LSN 98736 [BEGIN] Transaction id 618
+LSN 98708 [BEGIN] Transaction id 617
+LSN 98680 [BEGIN] Transaction id 616
+LSN 98652 [BEGIN] Transaction id 615
+LSN 98624 [BEGIN] Transaction id 614
+LSN 98596 [BEGIN] Transaction id 613
+LSN 98568 [BEGIN] Transaction id 612
+LSN 98540 [BEGIN] Transaction id 611
+LSN 98512 [BEGIN] Transaction id 610
+LSN 98484 [BEGIN] Transaction id 609
+LSN 98456 [BEGIN] Transaction id 608
+LSN 98428 [BEGIN] Transaction id 607
+LSN 98400 [BEGIN] Transaction id 606
+LSN 98372 [BEGIN] Transaction id 605
+LSN 98344 [BEGIN] Transaction id 604
+LSN 98316 [BEGIN] Transaction id 603
+LSN 98288 [BEGIN] Transaction id 602
+LSN 98260 [BEGIN] Transaction id 601
+LSN 98232 [BEGIN] Transaction id 600
+LSN 98204 [BEGIN] Transaction id 599
+LSN 98176 [BEGIN] Transaction id 598
+LSN 98148 [BEGIN] Transaction id 597
+LSN 98120 [BEGIN] Transaction id 596
+LSN 98092 [BEGIN] Transaction id 595
+LSN 98064 [BEGIN] Transaction id 594
+LSN 98036 [BEGIN] Transaction id 593
+LSN 98008 [BEGIN] Transaction id 592
+LSN 97980 [BEGIN] Transaction id 591
+LSN 97952 [BEGIN] Transaction id 590
+LSN 97924 [BEGIN] Transaction id 589
+LSN 97896 [BEGIN] Transaction id 588
+LSN 97868 [BEGIN] Transaction id 587
+LSN 97840 [BEGIN] Transaction id 586
+LSN 97812 [BEGIN] Transaction id 585
+LSN 97784 [BEGIN] Transaction id 584
+LSN 97756 [BEGIN] Transaction id 583
+LSN 97728 [BEGIN] Transaction id 582
+LSN 97700 [BEGIN] Transaction id 581
+LSN 97672 [BEGIN] Transaction id 580
+LSN 97644 [BEGIN] Transaction id 579
+LSN 97616 [BEGIN] Transaction id 578
+LSN 97588 [BEGIN] Transaction id 577
+LSN 97560 [BEGIN] Transaction id 576
+LSN 97532 [BEGIN] Transaction id 575
+LSN 97504 [BEGIN] Transaction id 574
+LSN 97476 [BEGIN] Transaction id 573
+LSN 97448 [BEGIN] Transaction id 572
+LSN 97420 [COMMIT] Transaction id 12
+LSN 97392 [COMMIT] Transaction id 16
+LSN 97364 [COMMIT] Transaction id 23
+LSN 97336 [COMMIT] Transaction id 17
+LSN 97308 [COMMIT] Transaction id 21
+LSN 97280 [COMMIT] Transaction id 19
+LSN 96964 [COMMIT] Transaction id 25
+LSN 96936 [COMMIT] Transaction id 15
+LSN 96908 [COMMIT] Transaction id 13
+LSN 96880 [COMMIT] Transaction id 11
+LSN 96852 [COMMIT] Transaction id 9
+LSN 96824 [COMMIT] Transaction id 8
+LSN 96796 [COMMIT] Transaction id 7
+LSN 96768 [COMMIT] Transaction id 6
+LSN 96740 [COMMIT] Transaction id 2
+LSN 96712 [COMMIT] Transaction id 4
+LSN 17196 [BEGIN] Transaction id 571
+LSN 17168 [BEGIN] Transaction id 570
+LSN 17140 [BEGIN] Transaction id 569
+LSN 17112 [BEGIN] Transaction id 568
+LSN 17084 [BEGIN] Transaction id 567
+LSN 17056 [BEGIN] Transaction id 566
+LSN 17028 [BEGIN] Transaction id 565
+LSN 17000 [BEGIN] Transaction id 564
+LSN 16972 [BEGIN] Transaction id 563
+LSN 16944 [BEGIN] Transaction id 562
+LSN 16916 [BEGIN] Transaction id 561
+LSN 16888 [BEGIN] Transaction id 560
+LSN 16860 [BEGIN] Transaction id 559
+LSN 16832 [BEGIN] Transaction id 558
+LSN 16804 [BEGIN] Transaction id 557
+LSN 16776 [BEGIN] Transaction id 556
+LSN 16748 [BEGIN] Transaction id 555
+LSN 16720 [BEGIN] Transaction id 554
+LSN 16692 [BEGIN] Transaction id 553
+LSN 16664 [BEGIN] Transaction id 552
+LSN 16636 [BEGIN] Transaction id 551
+LSN 16608 [BEGIN] Transaction id 550
+LSN 16580 [BEGIN] Transaction id 549
+LSN 16552 [BEGIN] Transaction id 548
+LSN 16524 [BEGIN] Transaction id 547
+LSN 16496 [BEGIN] Transaction id 546
+LSN 16468 [BEGIN] Transaction id 545
+LSN 16440 [BEGIN] Transaction id 544
+LSN 16412 [BEGIN] Transaction id 543
+LSN 16384 [BEGIN] Transaction id 542
+LSN 16356 [BEGIN] Transaction id 541
+LSN 16328 [BEGIN] Transaction id 540
+LSN 16300 [BEGIN] Transaction id 539
+LSN 16272 [BEGIN] Transaction id 538
+LSN 16244 [BEGIN] Transaction id 537
+LSN 16216 [BEGIN] Transaction id 536
+LSN 16188 [BEGIN] Transaction id 535
+LSN 16160 [BEGIN] Transaction id 534
+LSN 16132 [BEGIN] Transaction id 533
+LSN 16104 [BEGIN] Transaction id 532
+LSN 16076 [BEGIN] Transaction id 531
+LSN 16048 [BEGIN] Transaction id 530
+LSN 16020 [BEGIN] Transaction id 529
+LSN 15992 [BEGIN] Transaction id 528
+LSN 15964 [BEGIN] Transaction id 527
+LSN 15936 [BEGIN] Transaction id 526
+LSN 15908 [BEGIN] Transaction id 525
+LSN 15880 [BEGIN] Transaction id 524
+LSN 15852 [BEGIN] Transaction id 523
+LSN 15824 [BEGIN] Transaction id 522
+LSN 15796 [BEGIN] Transaction id 521
+LSN 15768 [BEGIN] Transaction id 520
+LSN 15740 [BEGIN] Transaction id 519
+LSN 15712 [BEGIN] Transaction id 518
+LSN 15684 [BEGIN] Transaction id 517
+LSN 15656 [BEGIN] Transaction id 516
+LSN 15628 [BEGIN] Transaction id 515
+LSN 15600 [BEGIN] Transaction id 514
+LSN 15572 [BEGIN] Transaction id 513
+LSN 15544 [BEGIN] Transaction id 512
+LSN 15516 [BEGIN] Transaction id 511
+LSN 15488 [BEGIN] Transaction id 510
+LSN 15460 [BEGIN] Transaction id 509
+LSN 15432 [BEGIN] Transaction id 508
+LSN 15404 [BEGIN] Transaction id 507
+LSN 15376 [BEGIN] Transaction id 506
+LSN 15348 [BEGIN] Transaction id 505
+LSN 15320 [BEGIN] Transaction id 504
+LSN 15292 [BEGIN] Transaction id 503
+LSN 15264 [BEGIN] Transaction id 502
+LSN 15236 [BEGIN] Transaction id 501
+LSN 15208 [BEGIN] Transaction id 500
+LSN 15180 [BEGIN] Transaction id 499
+LSN 15152 [BEGIN] Transaction id 498
+LSN 15124 [BEGIN] Transaction id 497
+LSN 15096 [BEGIN] Transaction id 496
+LSN 15068 [BEGIN] Transaction id 495
+LSN 15040 [BEGIN] Transaction id 494
+LSN 15012 [BEGIN] Transaction id 493
+LSN 14984 [BEGIN] Transaction id 492
+LSN 14956 [BEGIN] Transaction id 491
+LSN 14928 [BEGIN] Transaction id 490
+LSN 14900 [BEGIN] Transaction id 489
+LSN 14872 [BEGIN] Transaction id 488
+LSN 14844 [BEGIN] Transaction id 487
+LSN 14816 [BEGIN] Transaction id 486
+LSN 14788 [BEGIN] Transaction id 485
+LSN 14760 [BEGIN] Transaction id 484
+LSN 14732 [BEGIN] Transaction id 483
+LSN 14704 [BEGIN] Transaction id 482
+LSN 14676 [BEGIN] Transaction id 481
+LSN 14648 [BEGIN] Transaction id 480
+LSN 14620 [BEGIN] Transaction id 479
+LSN 14592 [BEGIN] Transaction id 478
+LSN 14564 [BEGIN] Transaction id 477
+LSN 14536 [BEGIN] Transaction id 476
+LSN 14508 [BEGIN] Transaction id 475
+LSN 14480 [BEGIN] Transaction id 474
+LSN 14452 [BEGIN] Transaction id 473
+LSN 14424 [BEGIN] Transaction id 472
+LSN 14396 [BEGIN] Transaction id 471
+LSN 14368 [BEGIN] Transaction id 470
+LSN 14340 [BEGIN] Transaction id 469
+LSN 14312 [BEGIN] Transaction id 468
+LSN 14284 [BEGIN] Transaction id 467
+LSN 14256 [BEGIN] Transaction id 466
+LSN 14228 [BEGIN] Transaction id 465
+LSN 14200 [BEGIN] Transaction id 464
+LSN 14172 [BEGIN] Transaction id 463
+LSN 14144 [BEGIN] Transaction id 462
+LSN 14116 [BEGIN] Transaction id 461
+LSN 14088 [BEGIN] Transaction id 460
+LSN 14060 [BEGIN] Transaction id 459
+LSN 14032 [BEGIN] Transaction id 458
+LSN 14004 [BEGIN] Transaction id 457
+LSN 13976 [BEGIN] Transaction id 456
+LSN 13948 [BEGIN] Transaction id 455
+LSN 13920 [BEGIN] Transaction id 454
+LSN 13892 [BEGIN] Transaction id 453
+LSN 13864 [BEGIN] Transaction id 452
+LSN 13836 [BEGIN] Transaction id 451
+LSN 13808 [BEGIN] Transaction id 450
+LSN 13780 [BEGIN] Transaction id 449
+LSN 13752 [BEGIN] Transaction id 448
+LSN 13724 [BEGIN] Transaction id 447
+LSN 13696 [BEGIN] Transaction id 446
+LSN 13668 [BEGIN] Transaction id 445
+LSN 13640 [BEGIN] Transaction id 444
+LSN 13612 [BEGIN] Transaction id 443
+LSN 13584 [BEGIN] Transaction id 442
+LSN 13556 [BEGIN] Transaction id 441
+LSN 13528 [BEGIN] Transaction id 440
+LSN 13500 [BEGIN] Transaction id 439
+LSN 13472 [BEGIN] Transaction id 438
+LSN 13444 [BEGIN] Transaction id 437
+LSN 13416 [BEGIN] Transaction id 436
+LSN 13388 [BEGIN] Transaction id 435
+LSN 13360 [BEGIN] Transaction id 434
+LSN 13332 [BEGIN] Transaction id 433
+LSN 13304 [BEGIN] Transaction id 432
+LSN 13276 [BEGIN] Transaction id 431
+LSN 13248 [BEGIN] Transaction id 430
+LSN 13220 [BEGIN] Transaction id 429
+LSN 13192 [BEGIN] Transaction id 428
+LSN 13164 [BEGIN] Transaction id 427
+LSN 13136 [BEGIN] Transaction id 426
+LSN 13108 [BEGIN] Transaction id 425
+LSN 13080 [BEGIN] Transaction id 424
+LSN 13052 [BEGIN] Transaction id 423
+LSN 13024 [BEGIN] Transaction id 422
+LSN 12996 [BEGIN] Transaction id 421
+LSN 12968 [BEGIN] Transaction id 420
+LSN 12940 [BEGIN] Transaction id 419
+LSN 12912 [BEGIN] Transaction id 418
+LSN 12884 [BEGIN] Transaction id 417
+LSN 12856 [BEGIN] Transaction id 416
+LSN 12828 [BEGIN] Transaction id 415
+LSN 12800 [BEGIN] Transaction id 414
+LSN 12772 [BEGIN] Transaction id 413
+LSN 12744 [BEGIN] Transaction id 412
+LSN 12716 [BEGIN] Transaction id 411
+LSN 12688 [BEGIN] Transaction id 410
+LSN 12660 [BEGIN] Transaction id 409
+LSN 12632 [BEGIN] Transaction id 408
+LSN 12604 [BEGIN] Transaction id 407
+LSN 12576 [BEGIN] Transaction id 406
+LSN 12548 [BEGIN] Transaction id 405
+LSN 12520 [BEGIN] Transaction id 404
+LSN 12492 [BEGIN] Transaction id 403
+LSN 12464 [BEGIN] Transaction id 402
+LSN 12436 [BEGIN] Transaction id 401
+LSN 12408 [BEGIN] Transaction id 400
+LSN 12380 [BEGIN] Transaction id 399
+LSN 12352 [BEGIN] Transaction id 398
+LSN 12324 [BEGIN] Transaction id 397
+LSN 12296 [BEGIN] Transaction id 396
+LSN 12268 [BEGIN] Transaction id 395
+LSN 12240 [BEGIN] Transaction id 394
+LSN 12212 [BEGIN] Transaction id 393
+LSN 12184 [BEGIN] Transaction id 392
+LSN 12156 [BEGIN] Transaction id 391
+LSN 12128 [BEGIN] Transaction id 390
+LSN 12100 [BEGIN] Transaction id 389
+LSN 12072 [BEGIN] Transaction id 388
+LSN 12044 [BEGIN] Transaction id 387
+LSN 12016 [BEGIN] Transaction id 386
+LSN 11988 [BEGIN] Transaction id 385
+LSN 11960 [BEGIN] Transaction id 384
+LSN 11932 [BEGIN] Transaction id 383
+LSN 11904 [BEGIN] Transaction id 382
+LSN 11876 [BEGIN] Transaction id 381
+LSN 11848 [BEGIN] Transaction id 380
+LSN 11820 [BEGIN] Transaction id 379
+LSN 11792 [BEGIN] Transaction id 378
+LSN 11764 [BEGIN] Transaction id 377
+LSN 11736 [BEGIN] Transaction id 376
+LSN 11708 [BEGIN] Transaction id 375
+LSN 11680 [BEGIN] Transaction id 374
+LSN 11652 [BEGIN] Transaction id 373
+LSN 11624 [BEGIN] Transaction id 372
+LSN 11596 [BEGIN] Transaction id 371
+LSN 11568 [BEGIN] Transaction id 370
+LSN 11540 [BEGIN] Transaction id 369
+LSN 11512 [BEGIN] Transaction id 368
+LSN 11484 [BEGIN] Transaction id 367
+LSN 11456 [BEGIN] Transaction id 366
+LSN 11428 [BEGIN] Transaction id 365
+LSN 11400 [BEGIN] Transaction id 364
+LSN 11372 [BEGIN] Transaction id 363
+LSN 11344 [BEGIN] Transaction id 362
+LSN 11316 [BEGIN] Transaction id 361
+LSN 11288 [BEGIN] Transaction id 360
+LSN 11260 [BEGIN] Transaction id 359
+LSN 11232 [BEGIN] Transaction id 358
+LSN 11204 [BEGIN] Transaction id 357
+LSN 11176 [BEGIN] Transaction id 356
+LSN 11148 [BEGIN] Transaction id 355
+LSN 11120 [BEGIN] Transaction id 354
+LSN 11092 [BEGIN] Transaction id 353
+LSN 11064 [BEGIN] Transaction id 352
+LSN 11036 [BEGIN] Transaction id 351
+LSN 11008 [BEGIN] Transaction id 350
+LSN 10980 [BEGIN] Transaction id 349
+LSN 10952 [BEGIN] Transaction id 348
+LSN 10924 [BEGIN] Transaction id 347
+LSN 10896 [BEGIN] Transaction id 346
+LSN 10868 [BEGIN] Transaction id 345
+LSN 10840 [BEGIN] Transaction id 344
+LSN 10812 [BEGIN] Transaction id 343
+LSN 10784 [BEGIN] Transaction id 342
+LSN 10756 [BEGIN] Transaction id 341
+LSN 10728 [BEGIN] Transaction id 340
+LSN 10700 [BEGIN] Transaction id 339
+LSN 10672 [BEGIN] Transaction id 338
+LSN 10644 [BEGIN] Transaction id 337
+LSN 10616 [BEGIN] Transaction id 336
+LSN 10588 [BEGIN] Transaction id 335
+LSN 10560 [BEGIN] Transaction id 334
+LSN 10532 [BEGIN] Transaction id 333
+LSN 10504 [BEGIN] Transaction id 332
+LSN 10476 [BEGIN] Transaction id 331
+LSN 10448 [BEGIN] Transaction id 330
+LSN 10420 [BEGIN] Transaction id 329
+LSN 10392 [BEGIN] Transaction id 328
+LSN 10364 [BEGIN] Transaction id 327
+LSN 10336 [BEGIN] Transaction id 326
+LSN 10308 [BEGIN] Transaction id 325
+LSN 10280 [BEGIN] Transaction id 324
+LSN 10252 [BEGIN] Transaction id 323
+LSN 10224 [BEGIN] Transaction id 322
+LSN 10196 [BEGIN] Transaction id 321
+LSN 10168 [BEGIN] Transaction id 320
+LSN 10140 [BEGIN] Transaction id 319
+LSN 10112 [BEGIN] Transaction id 318
+LSN 10084 [BEGIN] Transaction id 317
+LSN 10056 [BEGIN] Transaction id 316
+LSN 10028 [BEGIN] Transaction id 315
+LSN 10000 [BEGIN] Transaction id 314
+LSN 9972 [BEGIN] Transaction id 313
+LSN 9944 [BEGIN] Transaction id 312
+LSN 9916 [BEGIN] Transaction id 311
+LSN 9888 [BEGIN] Transaction id 310
+LSN 9860 [BEGIN] Transaction id 309
+LSN 9832 [BEGIN] Transaction id 308
+LSN 9804 [BEGIN] Transaction id 307
+LSN 9776 [BEGIN] Transaction id 306
+LSN 9748 [BEGIN] Transaction id 305
+LSN 9720 [BEGIN] Transaction id 304
+LSN 9692 [BEGIN] Transaction id 303
+LSN 9664 [BEGIN] Transaction id 302
+LSN 9636 [BEGIN] Transaction id 301
+LSN 9608 [BEGIN] Transaction id 300
+LSN 9580 [BEGIN] Transaction id 299
+LSN 9552 [BEGIN] Transaction id 298
+LSN 9524 [BEGIN] Transaction id 297
+LSN 9496 [BEGIN] Transaction id 296
+LSN 9468 [BEGIN] Transaction id 295
+LSN 9440 [BEGIN] Transaction id 294
+LSN 9412 [BEGIN] Transaction id 293
+LSN 9384 [BEGIN] Transaction id 292
+LSN 9356 [BEGIN] Transaction id 291
+LSN 9328 [BEGIN] Transaction id 290
+LSN 9300 [BEGIN] Transaction id 289
+LSN 9272 [BEGIN] Transaction id 288
+LSN 9244 [BEGIN] Transaction id 287
+LSN 9216 [BEGIN] Transaction id 286
+LSN 9188 [BEGIN] Transaction id 285
+LSN 9160 [BEGIN] Transaction id 284
+LSN 9132 [BEGIN] Transaction id 283
+LSN 9104 [BEGIN] Transaction id 282
+LSN 9076 [BEGIN] Transaction id 281
+LSN 9048 [BEGIN] Transaction id 280
+LSN 9020 [BEGIN] Transaction id 279
+LSN 8992 [BEGIN] Transaction id 278
+LSN 8964 [BEGIN] Transaction id 277
+LSN 8936 [BEGIN] Transaction id 276
+LSN 8908 [BEGIN] Transaction id 275
+LSN 8880 [BEGIN] Transaction id 274
+LSN 8852 [BEGIN] Transaction id 273
+LSN 8824 [BEGIN] Transaction id 272
+LSN 8796 [BEGIN] Transaction id 271
+LSN 8768 [BEGIN] Transaction id 270
+LSN 8740 [BEGIN] Transaction id 269
+LSN 8712 [BEGIN] Transaction id 268
+LSN 8684 [BEGIN] Transaction id 267
+LSN 8656 [BEGIN] Transaction id 266
+LSN 8628 [BEGIN] Transaction id 265
+LSN 8600 [BEGIN] Transaction id 264
+LSN 8572 [BEGIN] Transaction id 263
+LSN 8544 [BEGIN] Transaction id 262
+LSN 8516 [BEGIN] Transaction id 261
+LSN 8488 [BEGIN] Transaction id 260
+LSN 8460 [BEGIN] Transaction id 259
+LSN 8432 [BEGIN] Transaction id 258
+LSN 8404 [BEGIN] Transaction id 257
+LSN 8376 [BEGIN] Transaction id 256
+LSN 8348 [BEGIN] Transaction id 255
+LSN 8320 [BEGIN] Transaction id 254
+LSN 8292 [BEGIN] Transaction id 253
+LSN 8264 [BEGIN] Transaction id 252
+LSN 8236 [BEGIN] Transaction id 251
+LSN 8208 [BEGIN] Transaction id 250
+LSN 8180 [BEGIN] Transaction id 249
+LSN 8152 [BEGIN] Transaction id 248
+LSN 8124 [BEGIN] Transaction id 247
+LSN 8096 [BEGIN] Transaction id 246
+LSN 8068 [BEGIN] Transaction id 245
+LSN 8040 [BEGIN] Transaction id 244
+LSN 8012 [BEGIN] Transaction id 243
+LSN 7984 [BEGIN] Transaction id 242
+LSN 7956 [BEGIN] Transaction id 241
+LSN 7928 [BEGIN] Transaction id 240
+LSN 7900 [BEGIN] Transaction id 239
+LSN 7872 [BEGIN] Transaction id 238
+LSN 7844 [BEGIN] Transaction id 237
+LSN 7816 [BEGIN] Transaction id 236
+LSN 7788 [BEGIN] Transaction id 235
+LSN 7760 [BEGIN] Transaction id 234
+LSN 7732 [BEGIN] Transaction id 233
+LSN 7704 [BEGIN] Transaction id 232
+LSN 7676 [BEGIN] Transaction id 231
+LSN 7648 [BEGIN] Transaction id 230
+LSN 7620 [BEGIN] Transaction id 229
+LSN 7592 [BEGIN] Transaction id 228
+LSN 7564 [BEGIN] Transaction id 227
+LSN 7536 [BEGIN] Transaction id 226
+LSN 7508 [BEGIN] Transaction id 225
+LSN 7480 [BEGIN] Transaction id 224
+LSN 7452 [BEGIN] Transaction id 223
+LSN 7424 [BEGIN] Transaction id 222
+LSN 7396 [BEGIN] Transaction id 221
+LSN 7368 [BEGIN] Transaction id 220
+LSN 7340 [BEGIN] Transaction id 219
+LSN 7312 [BEGIN] Transaction id 218
+LSN 7284 [BEGIN] Transaction id 217
+LSN 7256 [BEGIN] Transaction id 216
+LSN 7228 [BEGIN] Transaction id 215
+LSN 7200 [BEGIN] Transaction id 214
+LSN 7172 [BEGIN] Transaction id 213
+LSN 7144 [BEGIN] Transaction id 212
+LSN 7116 [BEGIN] Transaction id 211
+LSN 7088 [BEGIN] Transaction id 210
+LSN 7060 [BEGIN] Transaction id 209
+LSN 7032 [BEGIN] Transaction id 208
+LSN 7004 [BEGIN] Transaction id 207
+LSN 6976 [BEGIN] Transaction id 206
+LSN 6948 [BEGIN] Transaction id 205
+LSN 6920 [BEGIN] Transaction id 204
+LSN 6892 [BEGIN] Transaction id 203
+LSN 6864 [BEGIN] Transaction id 202
+LSN 6836 [BEGIN] Transaction id 201
+LSN 6808 [BEGIN] Transaction id 200
+LSN 6780 [BEGIN] Transaction id 199
+LSN 6752 [BEGIN] Transaction id 198
+LSN 6724 [BEGIN] Transaction id 197
+LSN 6696 [BEGIN] Transaction id 196
+LSN 6668 [BEGIN] Transaction id 195
+LSN 6640 [BEGIN] Transaction id 194
+LSN 6612 [BEGIN] Transaction id 193
+LSN 6584 [BEGIN] Transaction id 192
+LSN 6556 [BEGIN] Transaction id 191
+LSN 6528 [BEGIN] Transaction id 190
+LSN 6500 [BEGIN] Transaction id 189
+LSN 6472 [BEGIN] Transaction id 188
+LSN 6444 [BEGIN] Transaction id 187
+LSN 6416 [BEGIN] Transaction id 186
+LSN 6388 [BEGIN] Transaction id 185
+LSN 6360 [BEGIN] Transaction id 184
+LSN 6332 [BEGIN] Transaction id 183
+LSN 6304 [BEGIN] Transaction id 182
+LSN 6276 [BEGIN] Transaction id 181
+LSN 6248 [BEGIN] Transaction id 180
+LSN 6220 [BEGIN] Transaction id 179
+LSN 6192 [BEGIN] Transaction id 178
+LSN 6164 [BEGIN] Transaction id 177
+LSN 6136 [BEGIN] Transaction id 176
+LSN 6108 [BEGIN] Transaction id 175
+LSN 6080 [BEGIN] Transaction id 174
+LSN 6052 [BEGIN] Transaction id 173
+LSN 6024 [BEGIN] Transaction id 172
+LSN 5996 [BEGIN] Transaction id 171
+LSN 5968 [BEGIN] Transaction id 170
+LSN 5940 [BEGIN] Transaction id 169
+LSN 5912 [BEGIN] Transaction id 168
+LSN 5884 [BEGIN] Transaction id 167
+LSN 5856 [BEGIN] Transaction id 166
+LSN 5828 [BEGIN] Transaction id 165
+LSN 5800 [BEGIN] Transaction id 164
+LSN 5772 [BEGIN] Transaction id 163
+LSN 5744 [BEGIN] Transaction id 162
+LSN 5716 [BEGIN] Transaction id 161
+LSN 5688 [BEGIN] Transaction id 160
+LSN 5660 [BEGIN] Transaction id 159
+LSN 5632 [BEGIN] Transaction id 158
+LSN 5604 [BEGIN] Transaction id 157
+LSN 5576 [BEGIN] Transaction id 156
+LSN 5548 [BEGIN] Transaction id 155
+LSN 5520 [BEGIN] Transaction id 154
+LSN 5492 [BEGIN] Transaction id 153
+LSN 5464 [BEGIN] Transaction id 152
+LSN 5436 [BEGIN] Transaction id 151
+LSN 5408 [BEGIN] Transaction id 150
+LSN 5380 [BEGIN] Transaction id 149
+LSN 5352 [BEGIN] Transaction id 148
+LSN 5324 [BEGIN] Transaction id 147
+LSN 5296 [BEGIN] Transaction id 146
+LSN 5268 [BEGIN] Transaction id 145
+LSN 5240 [BEGIN] Transaction id 144
+LSN 5212 [BEGIN] Transaction id 143
+LSN 5184 [BEGIN] Transaction id 142
+LSN 5156 [BEGIN] Transaction id 141
+LSN 5128 [BEGIN] Transaction id 140
+LSN 5100 [BEGIN] Transaction id 139
+LSN 5072 [BEGIN] Transaction id 138
+LSN 5044 [BEGIN] Transaction id 137
+LSN 5016 [BEGIN] Transaction id 136
+LSN 4988 [BEGIN] Transaction id 135
+LSN 4960 [BEGIN] Transaction id 134
+LSN 4932 [BEGIN] Transaction id 133
+LSN 4904 [BEGIN] Transaction id 132
+LSN 4876 [BEGIN] Transaction id 131
+LSN 4848 [BEGIN] Transaction id 130
+LSN 4820 [BEGIN] Transaction id 129
+LSN 4792 [BEGIN] Transaction id 128
+LSN 4764 [BEGIN] Transaction id 127
+LSN 4736 [BEGIN] Transaction id 126
+LSN 4708 [BEGIN] Transaction id 125
+LSN 4680 [BEGIN] Transaction id 124
+LSN 4652 [BEGIN] Transaction id 123
+LSN 4624 [BEGIN] Transaction id 122
+LSN 4596 [BEGIN] Transaction id 121
+LSN 4568 [BEGIN] Transaction id 120
+LSN 4540 [BEGIN] Transaction id 119
+LSN 4512 [BEGIN] Transaction id 118
+LSN 4484 [BEGIN] Transaction id 117
+LSN 4456 [BEGIN] Transaction id 116
+LSN 4428 [BEGIN] Transaction id 115
+LSN 4400 [BEGIN] Transaction id 114
+LSN 4372 [BEGIN] Transaction id 113
+LSN 4344 [BEGIN] Transaction id 112
+LSN 4316 [BEGIN] Transaction id 111
+LSN 4288 [BEGIN] Transaction id 110
+LSN 4260 [BEGIN] Transaction id 109
+LSN 4232 [BEGIN] Transaction id 108
+LSN 4204 [BEGIN] Transaction id 107
+LSN 4176 [BEGIN] Transaction id 106
+LSN 4148 [BEGIN] Transaction id 105
+LSN 4120 [BEGIN] Transaction id 104
+LSN 4092 [BEGIN] Transaction id 103
+LSN 4064 [BEGIN] Transaction id 102
+LSN 4036 [BEGIN] Transaction id 101
+LSN 4008 [BEGIN] Transaction id 100
+LSN 3980 [BEGIN] Transaction id 99
+LSN 3952 [BEGIN] Transaction id 98
+LSN 3924 [BEGIN] Transaction id 97
+LSN 3896 [BEGIN] Transaction id 96
+LSN 3868 [BEGIN] Transaction id 95
+LSN 3840 [BEGIN] Transaction id 94
+LSN 3812 [BEGIN] Transaction id 93
+LSN 3784 [BEGIN] Transaction id 92
+LSN 3756 [BEGIN] Transaction id 91
+LSN 3728 [BEGIN] Transaction id 90
+LSN 3700 [BEGIN] Transaction id 89
+LSN 3672 [BEGIN] Transaction id 88
+LSN 3644 [BEGIN] Transaction id 87
+LSN 3616 [BEGIN] Transaction id 86
+LSN 3588 [BEGIN] Transaction id 85
+LSN 3560 [BEGIN] Transaction id 84
+LSN 3532 [BEGIN] Transaction id 83
+LSN 3504 [BEGIN] Transaction id 82
+LSN 3476 [BEGIN] Transaction id 81
+LSN 3448 [BEGIN] Transaction id 80
+LSN 3420 [BEGIN] Transaction id 79
+LSN 3392 [BEGIN] Transaction id 78
+LSN 3364 [BEGIN] Transaction id 77
+LSN 3336 [BEGIN] Transaction id 76
+LSN 3308 [BEGIN] Transaction id 75
+LSN 3280 [BEGIN] Transaction id 74
+LSN 3252 [BEGIN] Transaction id 73
+LSN 3224 [BEGIN] Transaction id 72
+LSN 3196 [BEGIN] Transaction id 71
+LSN 3168 [BEGIN] Transaction id 70
+LSN 3140 [BEGIN] Transaction id 69
+LSN 3112 [BEGIN] Transaction id 68
+LSN 3084 [BEGIN] Transaction id 67
+LSN 3056 [BEGIN] Transaction id 66
+LSN 3028 [BEGIN] Transaction id 65
+LSN 3000 [BEGIN] Transaction id 64
+LSN 2972 [BEGIN] Transaction id 63
+LSN 2944 [BEGIN] Transaction id 62
+LSN 2916 [BEGIN] Transaction id 61
+LSN 2888 [BEGIN] Transaction id 60
+LSN 2860 [BEGIN] Transaction id 59
+LSN 2832 [BEGIN] Transaction id 58
+LSN 2804 [BEGIN] Transaction id 57
+LSN 2776 [BEGIN] Transaction id 56
+LSN 2748 [BEGIN] Transaction id 55
+LSN 2720 [BEGIN] Transaction id 54
+LSN 2692 [BEGIN] Transaction id 53
+LSN 2664 [BEGIN] Transaction id 52
+LSN 2636 [BEGIN] Transaction id 51
+LSN 2608 [BEGIN] Transaction id 50
+LSN 2580 [BEGIN] Transaction id 49
+LSN 2552 [BEGIN] Transaction id 48
+LSN 2524 [BEGIN] Transaction id 47
+LSN 2496 [BEGIN] Transaction id 46
+LSN 2468 [BEGIN] Transaction id 45
+LSN 2440 [BEGIN] Transaction id 44
+LSN 2412 [BEGIN] Transaction id 43
+LSN 2384 [BEGIN] Transaction id 42
+LSN 2356 [BEGIN] Transaction id 41
+LSN 2328 [BEGIN] Transaction id 40
+LSN 2300 [BEGIN] Transaction id 39
+LSN 2272 [BEGIN] Transaction id 38
+LSN 2244 [BEGIN] Transaction id 37
+LSN 2216 [BEGIN] Transaction id 36
+LSN 2188 [BEGIN] Transaction id 35
+LSN 2160 [BEGIN] Transaction id 34
+LSN 2132 [BEGIN] Transaction id 33
+LSN 2104 [BEGIN] Transaction id 32
+LSN 2076 [BEGIN] Transaction id 31
+LSN 2048 [BEGIN] Transaction id 30
+LSN 2020 [BEGIN] Transaction id 29
+LSN 1992 [BEGIN] Transaction id 28
+LSN 1964 [BEGIN] Transaction id 27
+LSN 1936 [BEGIN] Transaction id 26
+LSN 1908 [BEGIN] Transaction id 25
+LSN 1880 [BEGIN] Transaction id 24
+LSN 1852 [BEGIN] Transaction id 23
+LSN 1824 [BEGIN] Transaction id 22
+LSN 1796 [BEGIN] Transaction id 21
+LSN 1768 [BEGIN] Transaction id 20
+LSN 1740 [BEGIN] Transaction id 19
+LSN 1712 [BEGIN] Transaction id 18
+LSN 1684 [BEGIN] Transaction id 17
+LSN 1656 [BEGIN] Transaction id 16
+LSN 1628 [BEGIN] Transaction id 15
+LSN 1600 [BEGIN] Transaction id 14
+LSN 1572 [BEGIN] Transaction id 13
+LSN 1544 [BEGIN] Transaction id 12
+LSN 1516 [BEGIN] Transaction id 11
+LSN 1200 [BEGIN] Transaction id 10
+LSN 884 [BEGIN] Transaction id 9
+LSN 568 [BEGIN] Transaction id 8
+LSN 252 [COMMIT] Transaction id 5
+LSN 224 [COMMIT] Transaction id 3
+LSN 196 [BEGIN] Transaction id 7
+LSN 168 [BEGIN] Transaction id 6
+LSN 140 [COMMIT] Transaction id 1
+LSN 112 [BEGIN] Transaction id 5
+LSN 84 [BEGIN] Transaction id 4
+LSN 56 [BEGIN] Transaction id 3
+LSN 28 [BEGIN] Transaction id 2
+LSN 0 [BEGIN] Transaction id 1
+[UNDO] Undo pass end
