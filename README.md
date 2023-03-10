@@ -27,7 +27,10 @@ internal record를 저장하는 페이지이다. internal record는 leaf record�
 치를 알려주는 역할을 한다. 
 
 ### leaf page: 
-실질적으로 leaf record를 가지고 있는 페이지이다. free page: leaf page, internal page가 될 수 있는 공백의 페이지이다.
+실질적으로 leaf record를 가지고 있는 페이지이다. 
+
+### free page: 
+leaf page, internal page가 될 수 있는 공백의 페이지이다.
 
 ![image](image/image2.png)
 
@@ -35,21 +38,19 @@ internal record를 저장하는 페이지이다. internal record는 leaf record�
 
 ### ● insert
 
-find함수를 통해 해당 key를 가진 record가 존재하는지 판단한다. record가 존재할 경우, value만 업데이트 한다. 그렇지 않을 경우, 새로운 record를 insert 해야 하는데 아래의 3가
-지 상황에 알맞게 동작해야한다.
+find함수를 통해 해당 key를 가진 record가 존재하는지 판단한다. record가 존재할 경우, value만 업데이트 한다. 그렇지 않을 경우, 새로운 record를 insert 해야 하는데 아래의 3가지 상황에 알맞게 동작해야한다.
 1. 트리가 존재하지 않는 경우
 2. 트리가 존재하고 insert될 공간이 있는 경우
 3. 트리가 존재하고 insert될 공간이 없는 경우
+
 1의 경우, 새로운 트리를 만든다. 2의 경우, leaf 노드에 record를 insert 해준다. 3의 경우, leaf 노드에 record를 insert 해주고 split 해준다. 그 후 internal 노드에 해당 
-record를 insert해주고 마찬가지로 노드가 가득 찼을 경우, split 해준다. 이 과정은 root 노
-드까지 일어난다. 
+record를 insert해주고 마찬가지로 노드가 가득 찼을 경우, split 해준다. 이 과정은 root 노드까지 일어난다. 
 
 ### ● delete
 
 root에서 시작하여 key가 속한 leaf page를 찾는다. leaf page에서 key를 제거한다. leaf 
 page의 key가 하나도 남지 않는 경우만 neighbor page와 merge가 일어난다. 다만 
-neighbor page에 key가 가득 차 있는 경우, neighbor page의 capacity가 초과될 수도 있
-기에 merge가 일어나지 않는다. merge가 일어났다면 leaf page 부모로부터 삭제된 페이지
+neighbor page에 key가 가득 차 있는 경우, neighbor page의 capacity가 초과될 수도 있기에 merge가 일어나지 않는다. merge가 일어났다면 leaf page 부모로부터 삭제된 페이지
 를 가리키는 page_num을 삭제한다. 이러한 delete가 root까지 전파될 수 있다. 아래의 링크는 b+ tree에서 insert와 delete가 어떻게 일어나는지 시각적으로 보여준다. https://www.cs.usfca.edu/~galles/visualization/BPlusTree.html
 
 ![image](image/image3.png)
@@ -64,7 +65,7 @@ file manager는 data file과 bpt manager 사이 연결고리이다. bpt manager�
 ## 초기의 disk based b+ tree 한계
 
 1. file I/o 가 많아 성능이 안 좋다. file manager에서 I/o가 많아짐에 따라 속도는 매우 느려진다. 초기의 disk based b+ tree
-는 페이제에 변경 사항이 생길 때마다 file I/o가 이루어진다. 다량의 insert/delete를 통해 
+는 페이지에 변경 사항이 생길 때마다 file I/o가 이루어진다. 다량의 insert/delete를 통해 
 structure modification까지 일어날 경우, file I/o가 급증할 것이다. 이는 성능 감소의 주된 
 원인이다. 이를 해결하기 위해 buffer manager가 필요하다. 
 2. 여러 트랜잭션이 동시에 사용할 수 없다. 초기의 disk based b+ tree는 단일 사용자만을 허용한다. 다수의 트랜잭션이 동시에 사용
@@ -74,14 +75,12 @@ log manger를 통해 해결되어야 한다.
 
 ## HOW Buffer manager Works 
 
-buffer manage은 file I/o를 최소화하기 위해 등장하였다. bpt manager와 file manger 사이
-에 위치하며 빠른 I/o를 가능하게 한다. buffer는 in memory 상에서 존재하는 page의 집합
+buffer manage은 file I/o를 최소화하기 위해 등장하였다. bpt manager와 file manger 사이에 위치하며 빠른 I/o를 가능하게 한다. buffer는 in memory 상에서 존재하는 page의 집합
 체이며 file I/o 보다 빠른 접근이 가능하다. 아래의 이점은 buffer manager가 DBMS에 가
 져오는 이점들이다.
 
 ### ● write buffering -> 
-file write를 직접적으로 하지 않고 buffer write한다. write가 빨리 이
-루어지는 것 같은 효과를 준다. 
+file write를 직접적으로 하지 않고 buffer write한다. write가 빨리 이루어지는 것 같은 효과를 준다. 
 
 ### ● caching read -> 
 해당 페이지에 대한 내용이 buffer에 있을 경우, file read가 일어나지 않는다. read가 빨리 이루어지는 것 같은 효과를 준다.
@@ -101,9 +100,8 @@ buffer에 페이지의 내용을 적으면 된다. 해당 페이지에 배당된
 룰 것이다. 
 
 ## Buffer manager issue: LRU policy 
-LRU policy 의 기본원칙은 가장 사용한지 오래된 버퍼를 제공하는 것이다. 제공하는 버퍼가 
-다른 operation을 통해 아직 사용하고 있으면 안 된다. 그렇기에 버퍼를 사용하고 있을 경
-우에는 set_pin을 하고 그렇지 않을 경우 unset_pin을 한다. 만일 제공해야할 버퍼가 
+LRU policy 의 기본원칙은 가장 사용한지 오래된 버퍼를 비우고 제공하는 것이다. 제공하는 버퍼가 
+다른 operation을 통해 아직 사용하고 있으면 안 된다. 그렇기에 버퍼를 사용하고 있을 경우에는 set_pin을 하고 그렇지 않을 경우 unset_pin을 한다. 만일 제공해야할 버퍼가 
 pinned되어 있다면 그 다음 버퍼를 제공해야 한다.
 
 # Concurrency Control Implementation
@@ -140,7 +138,7 @@ object를 직접 관리하는 모듈이다. 특정 record에 접근하는 lock o
 
 ![image](image/image5.png)
 
-buffer_maager_latch를 획득한 후에만, page latch를 획득하거나 LRU double linked list를 
+buffer_manager_latch를 획득한 후에만, page latch를 획득하거나 LRU double linked list를 
 변경할 수 있게 하였다. 다수의 트랜잭션이 동시에 buffer에 접근하는 와중에 buffer를 
 critical section으로 보호하기 위해서이다. 즉, isolation을 유지하기 위해서이다. 루트에서 리프까지 탐색하는 과정에서 buffer에서 page를 읽을 때, buffer_manager_latch를 
 먼저 획득하고 page_latch를 획득한다. page_latch를 획득한 후에는 buffer_manager_latch
@@ -177,14 +175,11 @@ log는 log buf에 저장되어 있다가 WAL에 의해 commit, flush 작업 전�
 ### Analysis pass 
 
 Analysis 단계에서는 트랜잭션을 winner와 loser로 나누었다. 그 기준은 commit 이나 abort 
-log의 유무였다. commit이나 abort log가 기록되어있으면 winner로 없으면 loser로 나누었
-다.
+log의 유무였다. commit이나 abort log가 기록되어있으면 winner로 없으면 loser로 나누었다.
 
 ### Redo pass 
 
-Redo 단계에서는 winner의 update 와 compensate 작업을 이행하는 것이 목표이다. 그래
-서 winner을 update, compensate log를 보고 new_data에 해당하는 값으로 갱신하는 작업
-을 하였다. page의 seq no이 log의 seq no보다 크다면 이미 page에는 값이 갱신된 것으
+Redo 단계에서는 winner의 update 와 compensate 작업을 이행하는 것이 목표이다. 그래서 winner을 update, compensate log를 보고 new_data에 해당하는 값으로 갱신하는 작업을 하였다. page의 seq no이 log의 seq no보다 크다면 이미 page에는 값이 갱신된 것으
 로 간주하고 skip 하였다. 이는 consider log에 관한 내용이며 recovery 도중 crash가 발생
 했을 때, 빠른 recovery를 위한 것이다. 
 ### Undo pass
