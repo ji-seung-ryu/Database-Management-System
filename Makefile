@@ -25,7 +25,6 @@ SRC:= \
 	$(SRCDIR)buf.cpp \
 	$(SRCDIR)bpt.cpp \
 	$(SRCDIR)file.cpp \
-	$(SRCDIR)log.cpp \
 
 OBJ:=$(SRC:.cpp=.o)
 

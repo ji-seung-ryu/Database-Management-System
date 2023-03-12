@@ -8,7 +8,6 @@
 #include "bpt.h"
 #include <fcntl.h>
 #include <lock_manager.h>
-#include <log.h>
 #include "buf.h"
 #include <map>
 #define MAX 10000
@@ -387,18 +386,13 @@ int db_start_new_tree(int table_id, header_page *header, int64_t key, char *valu
 int db_insert(int table_id, int64_t key, char *value)
 {
 
+	printf("db insert table_id: %d, key: %d\n", table_id, key);
 	header_page *header = (header_page *)buf_read_page(table_id, 0);
 
 	/* The current implementation ignores
 	 * duplicates.
 	 */
 	char *tmp = (char *)malloc(sizeof(char) * 150);
-	/*    if (db_find(table_id, key, tmp,0)== 0){
-			printf("already exist\n");
-			buf_write_page(table_id,0,(page_t*)header);
-			release_page_latch(table_id, 0);
-			return -1;
-		}*/
 
 	if (header->root_page_num == 0)
 	{
@@ -483,6 +477,7 @@ int64_t db_find_leaf(int table_id, int key, header_page *header)
 int db_find(int table_id, int64_t key, char *ret_val, int trx_id)
 {
 
+	printf("trx: %d db find tid: %d key: %d\n", trx_id, table_id, key);
 	header_page *header = (header_page *)buf_read_page(table_id, 0);
 	release_page_latch(table_id, 0);
 
@@ -519,6 +514,7 @@ int db_find(int table_id, int64_t key, char *ret_val, int trx_id)
 int db_update(int table_id, int64_t key, char *values, int trx_id)
 {
 
+	printf("trx: %d db update tid: %d key: %d\n", trx_id, table_id, key);
 	header_page *header = (header_page *)buf_read_page(table_id, 0);
 	release_page_latch(table_id, 0);
 	pagenum_t offset = db_find_leaf(table_id, key, header);
@@ -545,18 +541,14 @@ int db_update(int table_id, int64_t key, char *values, int trx_id)
 	}
 	else
 	{
-		int page_lsn = log_update_write(trx_id, 1, table_id, offset, 128 + sizeof(leaf_record) * i, MAX_VALUE_SIZE, c->records[i].value, values);
 		release_page_latch(table_id, offset);
-
-		trx_backup(trx_id, table_id, key, offset, 128 + sizeof(leaf_record) * i, c->records[i].value);
 
 		lock_t *lock = lock_acquire(table_id, c->records[i].key, trx_id, 1, offset);
 		strcpy(c->records[i].value, values);
-		c->page_lsn = page_lsn;
+
 		c = (leaf_page *)buf_read_page(table_id, offset);
 		buf_write_page(table_id, offset, (page_t *)c);
 		release_page_latch(table_id, offset);
-
 		return 0;
 	}
 }

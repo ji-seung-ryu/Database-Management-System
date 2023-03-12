@@ -38,8 +38,9 @@ struct lock_t {
 
 
 /* APIs for lock table */
+//int get_hash_id (int table_id, int64_t key);
 int init_lock_table();
 lock_t* lock_acquire(int table_id, int64_t key, int trx_id, int lock_mode,int offset);
 int lock_release(lock_t* lock_obj);
 
-#endif 
+#endif /* __LOCK_TABLE_H__ */

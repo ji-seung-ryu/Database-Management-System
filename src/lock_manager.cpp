@@ -15,6 +15,8 @@ lock_acquire(int table_id, int64_t key, int trx_id, int lock_mode, int offset)
 
 	pthread_mutex_lock(&lock_table_latch);
 
+	printf("in lock acq trx:%d tid:%d key:%d\n", trx_id, table_id, key);
+
 	pair<int, int64_t> u = {table_id, key};
 	entry_t *entry = NULL;
 	lock_t *ret = (lock_t *)malloc(sizeof(lock_t));
@@ -62,6 +64,8 @@ lock_acquire(int table_id, int64_t key, int trx_id, int lock_mode, int offset)
 		return NULL;
 	}
 
+	lock_t *r = ret->sentinel->head->next;
+
 	while (ret->sentinel->head->next != ret && !(ret->lock_mode == 0 && ret->prev->lock_mode == 0 && ret->prev->is_waiting == 0))
 	{
 		if (ret->prev->is_waiting == 0 && ret->prev->owner_trx == trx_id)
@@ -72,7 +76,21 @@ lock_acquire(int table_id, int64_t key, int trx_id, int lock_mode, int offset)
 		pthread_cond_wait(&ret->cond, &lock_table_latch);
 	}
 
+	cout << "acquire lock trx" << trx_id << " tid:" << table_id << " key:" << key << "\n";
+
 	ret->is_waiting = 0;
+
+	leaf_page *lp = (leaf_page *)buf_read_page(table_id, offset);
+
+	int i = 0;
+	for (i = 0;; i++)
+	{
+		if (lp->records[i].key == key)
+			break;
+	}
+	char *prev_val = lp->records[i].value;
+	release_page_latch(table_id, offset);
+	trx_backup(trx_id, table_id, key, offset, prev_val);
 
 	pthread_mutex_unlock(&lock_table_latch);
 	return ret;
@@ -81,6 +99,8 @@ lock_acquire(int table_id, int64_t key, int trx_id, int lock_mode, int offset)
 int lock_release(lock_t *lock_obj)
 {
 	pthread_mutex_lock(&lock_table_latch);
+
+	cout << "release " << lock_obj->owner_trx << "\n";
 
 	lock_t *l = lock_obj->next;
 

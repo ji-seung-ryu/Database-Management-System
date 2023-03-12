@@ -64,30 +64,8 @@ void file_read_page(int table_id, pagenum_t pagenum, page_t *dest)
 	pread(id_fd[table_id], dest, PAGE_BYTE, pagenum * PAGE_BYTE);
 }
 
-void *file_read_log(int64_t offset, int *log_size)
-{
-
-	if (pread(log_fd, log_size, sizeof(int), offset) <= 0)
-	{
-
-		return NULL;
-	}
-	void *dest = malloc(*log_size);
-
-	memset(dest, 0, *log_size);
-	pread(log_fd, dest, *log_size, offset);
-	return dest;
-}
-
 void file_write_page(int table_id, pagenum_t pagenum, const page_t *src)
 {
 	pwrite(id_fd[table_id], src, PAGE_BYTE, pagenum * PAGE_BYTE);
-}
-
-void file_write_log(int log_id, int64_t offset, void *src, int log_size)
-{
-	if (src == NULL)
-		printf("NULL write\n");
-	if (log_size == pwrite(log_fd, src, log_size, offset))
-		printf("fully write\n");
+	fsync(fd);
 }

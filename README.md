@@ -153,37 +153,3 @@ Locking과 대게 유사하다. Two Phase Locking은 serializability을 보장�
 Aborts문제가 발생한다. 이는 하나의 트랜잭션이 commit 될 때 해당 트랜잭션이 가진 lock
 들을 동시에 release하면서 해결할 수 있다.
 
-# Crash-Recovery Implementation
-## why is crash-recovery implementation needed?
-
-DBMS 트랜잭션들이 안정적으로 수행된다는 것을 보장하기 위한 성질 ACID 중 AD에 해당
-하는 내용이다. 
-
-A: 트랜잭션과 관련된 작업들이 모두 수행되었는지 아니면, 모두 실행이 안되었는지를 보장
-하는 능력. 
-
-D: DBMS가 사용자에게 트랜잭션 커밋(commit) 응답을 했을 경우, 해당 트랜잭션의 커밋은 
-보장 되어야 한다는 속성. 
-
-crash-recovery는 A와 D를 안정적으로 수행하는 것을 도와준다. 
-
-## how crash-recovery manager works 
-
-log는 log buf에 저장되어 있다가 WAL에 의해 commit, flush 작업 전에 log disk에 적힐 
-것이다. log는 begin, commit, rollback, update, compensate로 총 5개의 종류가 있다. 기본적으로 three pass recovery를 지원하며 three pass는 Analysis pass – Redo pass – Undo pass를 의미한다. 
-
-### Analysis pass 
-
-Analysis 단계에서는 트랜잭션을 winner와 loser로 나누었다. 그 기준은 commit 이나 abort 
-log의 유무였다. commit이나 abort log가 기록되어있으면 winner로 없으면 loser로 나누었다.
-
-### Redo pass 
-
-Redo 단계에서는 winner의 update 와 compensate 작업을 이행하는 것이 목표이다. 그래서 winner을 update, compensate log를 보고 new_data에 해당하는 값으로 갱신하는 작업을 하였다. page의 seq no이 log의 seq no보다 크다면 이미 page에는 값이 갱신된 것으
-로 간주하고 skip 하였다. 이는 consider log에 관한 내용이며 recovery 도중 crash가 발생
-했을 때, 빠른 recovery를 위한 것이다. 
-### Undo pass
-
-Undo 단계에서는 loser의 update 와 compensate를 무효화 하는 것이 목적이다. 그래서 
-loser을 update, compensate log를 보고 old_data에 해당하는 값으로 갱신하는 작업을 하
-였다.

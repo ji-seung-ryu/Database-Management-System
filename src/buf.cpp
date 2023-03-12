@@ -9,52 +9,37 @@ map<pair<int, int>, int> page_buf;
 map<int, int> is_open;
 pthread_mutex_t buffer_manager_latch;
 int table_id;
-
+int fd;
 int id_fd[15];
 map<string, int> path_tid;
-FILE *logmsg_fp;
-int log_fd;
 
 int head, tail;
 
 int open_table(char *pathname)
 {
-
-	char subbuff[5];
-	int ret, fd;
-	memcpy(subbuff, &pathname[0], 4);
-	subbuff[4] = '\0';
-
-	if (strcmp(subbuff, "DATA") == 0)
-	{
-		if (pathname[4] - '0' >= 1 && pathname[4] - '0' <= 9)
-		{
-			if (pathname[5] == '\0')
-			{
-				ret = pathname[4] - '0';
-			}
-			else if (pathname[5] == '0' && pathname[4] == '1')
-			{
-				ret = 10;
-			}
-			else
-			{
-
-				return -1;
-			}
-		}
-	}
-
 	if ((fd = open(pathname, O_CREAT | O_RDWR | O_SYNC, 0644)) == -1)
 	{
 		printf("open error");
 		return -1;
 	}
 
-	if (is_open[ret])
-		return ret;
+	int ret;
 
-	id_fd[ret] = fd;
+	int past_tid;
+	if (path_tid[pathname])
+	{
+		past_tid = path_tid[pathname];
+		id_fd[past_tid] = fd;
+		ret = past_tid;
+	}
+	else
+	{
+		if (table_id >= 10)
+			return -1;
+		path_tid[pathname] = ++table_id;
+		id_fd[table_id] = fd;
+		ret = table_id;
+	}
 
 	header_page *header = (header_page *)buf_read_page(ret, 0);
 	if (header->number_of_pages == 0)
@@ -64,6 +49,7 @@ int open_table(char *pathname)
 	release_page_latch(ret, 0);
 
 	is_open[ret] = 1;
+
 	return ret;
 }
 
@@ -71,7 +57,7 @@ int get_id(int table_id, int page_num)
 {
 	return (int)1e6 * table_id + page_num;
 }
-int init_db(int num_buf, int flag, int log_num, char *log_path, char *logmsg_path)
+int init_db(int num_buf)
 {
 	buffer_manager_latch = PTHREAD_MUTEX_INITIALIZER;
 	B = (buffer *)malloc(sizeof(buffer) * (num_buf + 2));
@@ -89,27 +75,6 @@ int init_db(int num_buf, int flag, int log_num, char *log_path, char *logmsg_pat
 
 	head = 0;
 	tail = num_buf + 1;
-
-	log_fd = open(log_path, O_CREAT | O_RDWR | O_SYNC, 0644);
-
-	logmsg_fp = fopen(logmsg_path, "a");
-
-	log_analysis();
-	if (flag == 1)
-	{
-		log_redo(log_num);
-		return 0;
-	}
-	else
-		log_redo(-1);
-
-	if (flag == 2)
-	{
-		log_undo(log_num);
-		return 0;
-	}
-	else
-		log_undo(-1);
 }
 
 int find_buf(int tid)
