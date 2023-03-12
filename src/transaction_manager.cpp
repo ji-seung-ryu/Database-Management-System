@@ -28,6 +28,8 @@ int trx_commit(int trx_id)
 {
 	pthread_mutex_lock(&trx_manager_latch);
 
+	// if trx_id not exist before commit, OMG 
+	// when programs run nomarly, not execute
 	if (trx_hash.find(trx_id) == trx_hash.end())
 	{
 		pthread_mutex_unlock(&trx_manager_latch);
@@ -37,6 +39,7 @@ int trx_commit(int trx_id)
 	trx_t *trx = trx_hash[trx_id];
 	lock_t *lock = trx->first;
 
+	// in vector, there are lock which will be committed.
 	vector<lock_t *> lock_vec;
 	while (lock != NULL)
 	{
@@ -45,6 +48,21 @@ int trx_commit(int trx_id)
 	}
 
 	bool beforeLock = true;
+
+	// before comitting, remove the edges between conflicting locks
+	for (int i=0;i<(int)lock_vec.size();i++) {
+		lock = lock_vec[i]->sentinel->head->next;
+		while (lock != lock_vec[i]->sentinel->tail){
+			if ((lock_vec[i]->lock_mode | lock->lock_mode) == 1 && lock_vec[i]->owner_trx != lock->owner_trx){
+				
+				if (beforeLock) trx_unwait(lock->owner_trx, lock_vec[i]->owner_trx);
+				else trx_unwait(lock_vec[i]->owner_trx, lock->owner_trx);
+			}
+
+			if (lock == lock_vec[i]) beforeLock = false; 
+			lock = lock->next;
+		}
+	}
 
 	trx_hash.erase(trx_id);
 	pthread_mutex_unlock(&trx_manager_latch);
@@ -58,7 +76,7 @@ int trx_commit(int trx_id)
 }
 void trx_wait(int trx_front, int trx_back)
 {
-
+	// lock that trx_id is trx_back is waiting lock that trx_id is trx_front  
 	if (trx_front == trx_back)
 	{
 		return;
@@ -68,12 +86,13 @@ void trx_wait(int trx_front, int trx_back)
 
 void trx_unwait(int trx_front, int trx_back)
 {
-
+	// lock that trx_id is trx_back is !not! waiting lock that trx_id is trx_front  
 	if (trx_front == trx_back)
 	{
 		return;
 	}
 
+	// if there are no trx_front in front of trx_back, return 
 	if (waiting_trx[trx_back].end() == waiting_trx[trx_back].find(trx_front))
 	{
 		return;
@@ -81,8 +100,12 @@ void trx_unwait(int trx_front, int trx_back)
 	waiting_trx[trx_back].erase(waiting_trx[trx_back].find(trx_front));
 }
 
+// just dfs, and if here is visited, detect cycle (= deadlock)
 int trx_traversal(int here)
 {
+
+	// trx_check is true -> here is what i checked before, but there is no cycle
+	// trx_visit is true -> here is what i visited before, and visit again ( = cycle) 
 
 	if (trx_check[here])
 	{
@@ -162,6 +185,24 @@ int trx_acquire(int trx_id, lock_t *acquired_lock)
 
 	trx->first = acquired_lock;
 	acquired_lock->trx_next = tmp;
+
+	lock_t* l = acquired_lock->sentinel->head->next;
+
+	// add wait edge between conflicting locks (at least one lock exclusive  && not my trx)	
+	while (l != acquired_lock){
+		if ((l->lock_mode | acquired_lock->lock_mode) == 1 && l->owner_trx != acquired_lock->owner_trx){
+			trx_wait(l->owner_trx, acquired_lock->owner_trx);
+		}
+		l = l->next;
+	}
+
+	// if detect deadlock , return -1 
+	if (detect_deadlock() == -1){
+		pthread_mutex_unlock(&trx_manager_latch);
+		return -1; 
+	}
+	
+
 
 	pthread_mutex_unlock(&trx_manager_latch);
 	return 0;
